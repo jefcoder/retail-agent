@@ -57,79 +57,65 @@ JUDGE_MODELS_BY_PROVIDER: dict[str, list[str]] = {
 # Kept for back-compat with any external caller that referenced the old name.
 JUDGE_MODELS = JUDGE_MODELS_BY_PROVIDER["chutes"]
 
-CHUTES_UTILIZATION_URL = "https://api.chutes.ai/chutes/utilization"
-CHUTES_UTILIZATION_TIMEOUT = 5
+_RANKED_FETCH_TIMEOUT = 5
 
-# 30s coalesces per-validator bursts (~15 problems scoring in parallel)
-# while still picking up real load shifts within an eval.
-_MODEL_ORDER_CACHE_TTL_SECONDS = 30
-_model_order_cache: tuple[float, list[str]] | None = None
+# 30s coalesces per-validator bursts (~15 problems scoring in parallel) into
+# a single Backend call, and bounds Backend-facing QPS regardless of how
+# many validators run on one IP (the public allowlist endpoint is rate-limited
+# at 100 rpm/IP). Cache TTL ≤ Backend's own 60s upstream-poll cadence, so the
+# staleness ceiling is the same as if we hit Backend on every call.
+_RANKED_CACHE_TTL_SECONDS = 30
+_ranked_cache: dict[str, tuple[float, list[str]]] = {}
 
 
-def _select_models_for_provider(provider: str) -> list[str]:
-    """Return the judge model list for the given provider.
+def _static_fallback(provider: str) -> list[str]:
+    models = JUDGE_MODELS_BY_PROVIDER.get(provider) or JUDGE_MODELS_BY_PROVIDER["chutes"]
+    return list(models)
 
-    For chutes, query the utilization API to skip 0-instance models and sort
-    by load (cached for ``_MODEL_ORDER_CACHE_TTL_SECONDS``). OpenRouter has
-    no equivalent utilization signal, so we return the static list.
+
+def _fetch_ranked_models(provider: str, backend_url: str | None) -> list[str]:
+    """Fetch the per-provider ranked judge model list from the Backend.
+
+    Cached locally for ``_RANKED_CACHE_TTL_SECONDS`` to coalesce parallel
+    scoring bursts. Falls back to the static ``JUDGE_MODELS_BY_PROVIDER``
+    list on any failure so the judge keeps working when Backend is down.
     """
-    models = JUDGE_MODELS_BY_PROVIDER.get(provider)
-    if not models:
-        logger.warning(f"No judge models configured for provider={provider}; using chutes")
-        models = JUDGE_MODELS_BY_PROVIDER["chutes"]
-
-    if provider != "chutes":
-        return list(models)
-
-    global _model_order_cache
+    cached = _ranked_cache.get(provider)
     now = time.monotonic()
-    if _model_order_cache and now - _model_order_cache[0] < _MODEL_ORDER_CACHE_TTL_SECONDS:
-        # Return a copy so a caller mutating its result can't poison
-        # subsequent reads inside the TTL window.
-        return list(_model_order_cache[1])
+    if cached and now - cached[0] < _RANKED_CACHE_TTL_SECONDS:
+        return list(cached[1])
 
+    fallback = _static_fallback(provider)
+    if not backend_url:
+        return fallback
+    url = f"{backend_url.rstrip('/')}/v1/public/inference/models"
     try:
-        resp = requests.get(CHUTES_UTILIZATION_URL, timeout=CHUTES_UTILIZATION_TIMEOUT)
+        resp = requests.get(
+            url,
+            params={"provider": provider, "ranked": True},
+            timeout=_RANKED_FETCH_TIMEOUT,
+        )
         if resp.status_code != 200:
-            result = list(models)
-        else:
-            entries_by_name = {e["name"]: e for e in resp.json()}
-
-            def is_available(m: str) -> bool:
-                # Permissive on missing fields: not all entries carry
-                # active_instance_count, and a missing entry just means
-                # the model wasn't reported (still treat as usable).
-                e = entries_by_name.get(m)
-                count = e.get("active_instance_count") if e else None
-                return count is None or count > 0
-
-            available = [m for m in models if is_available(m)]
-            if not available:
-                logger.warning(
-                    "All judge models report zero active instances on Chutes; "
-                    "falling back to static model list"
-                )
-                result = list(models)
-            else:
-                result = sorted(
-                    available,
-                    key=lambda m: entries_by_name.get(m, {}).get("utilization_current", 1.0),
-                )
-                log_parts = [
-                    f"{m}({entries_by_name.get(m, {}).get('utilization_current', -1):.0%})"
-                    for m in result
-                ]
-                msg = "Judge model order by utilization: " + ", ".join(log_parts)
-                skipped = [m for m in models if m not in available]
-                if skipped:
-                    msg += f" | skipped (0 instances): {', '.join(skipped)}"
-                logger.info(msg)
-    except Exception as e:
-        logger.warning(f"Failed to fetch Chutes utilization, using static model list: {e}")
-        result = list(models)
-
-    _model_order_cache = (now, result)
-    return list(result)
+            logger.warning(
+                "Ranked models fetch returned %s; using static list", resp.status_code
+            )
+            _ranked_cache[provider] = (now, fallback)
+            return list(fallback)
+        body = resp.json()
+        allowed = set(fallback)
+        ids = [m["id"] for m in body.get("models", []) if m.get("id") in allowed]
+        if not ids:
+            _ranked_cache[provider] = (now, fallback)
+            return list(fallback)
+        ranked_by = body.get("ranked_by")
+        if ranked_by:
+            logger.info("Judge model order from Backend (%s): %s", ranked_by, ids)
+        _ranked_cache[provider] = (now, ids)
+        return list(ids)
+    except Exception as exc:
+        logger.warning("Failed to fetch ranked models, using static list: %s", exc)
+        _ranked_cache[provider] = (now, fallback)
+        return list(fallback)
 
 JUDGE_SYSTEM_PROMPT = """\
 You evaluate a shopping agent's trajectory and decide whether the agent is using genuine LLM reasoning or pattern matching / regex.
@@ -611,6 +597,7 @@ def score_reasoning_quality(
     proxy_url: str = PROXY_URL,
     max_retries: int = 8,
     provider: str = "chutes",
+    backend_url: str | None = None,
 ) -> JudgeResult:
     """Score reasoning quality of an agent trajectory using an LLM judge.
 
@@ -635,7 +622,7 @@ def score_reasoning_quality(
     url = f"{proxy_url.rstrip('/')}/inference/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    models = _select_models_for_provider(provider)
+    models = _fetch_ranked_models(provider, backend_url)
     # Models that returned an unparseable 200 in this eval. Skipped on
     # subsequent rotation steps so a single broken model (e.g. Chutes
     # serving empty `content` for one TEE variant while reporting healthy
