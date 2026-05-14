@@ -67,39 +67,11 @@ http {
             proxy_read_timeout 300s;
         }
 
-        # Route /inference/* requests through njs model validation
+        # Route /inference/* through njs (OpenRouter allowlist + upstream only)
         location /inference/ {
             limit_req zone=agent burst=50 nodelay;
             client_body_buffer_size 1m;
             js_content validate_model.validate;
-        }
-
-        # Internal location for proxying validated requests to Chutes API
-        location /_chutes_proxy/ {
-            internal;
-
-            # DNS resolution for external hostname (use Docker internal DNS)
-            resolver 127.0.0.11 valid=30s;
-            set $chutes_upstream https://${CHUTES_HOST};
-
-            # Strip /_chutes_proxy prefix and map to Chutes /v1/* API
-            rewrite ^/_chutes_proxy/(.*) /v1/$1 break;
-            proxy_pass $chutes_upstream;
-            proxy_ssl_server_name on;
-
-            # Forward client Authorization (sandbox sets INFERENCE_ACCESS_TOKEN; ProxyClient may still read legacy CHUTES_ACCESS_TOKEN)
-            proxy_set_header Authorization $http_authorization;
-            proxy_set_header Host ${CHUTES_HOST};
-            proxy_set_header X-Identifier "orosn15";
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-            # Prevent gzip double-encoding: tell upstream not to compress
-            proxy_set_header Accept-Encoding identity;
-
-            proxy_connect_timeout 300s;
-            proxy_send_timeout 300s;
-            proxy_read_timeout 300s;
         }
 
         # Internal location for proxying validated requests to OpenRouter API.
@@ -117,7 +89,7 @@ http {
             proxy_pass $openrouter_upstream;
             proxy_ssl_server_name on;
 
-            # Forward client Authorization (INFERENCE_ACCESS_TOKEN in sandbox; legacy CHUTES_ACCESS_TOKEN supported in ProxyClient).
+            # Forward client Authorization (sandbox: INFERENCE_ACCESS_TOKEN).
             proxy_set_header Authorization $http_authorization;
             proxy_set_header Host ${OPENROUTER_HOST};
             proxy_set_header X-Real-IP $remote_addr;

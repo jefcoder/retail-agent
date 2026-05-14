@@ -92,11 +92,11 @@ class Deadlines:
 
 
 class Models:
-    _PARSE = "deepseek-ai/DeepSeek-V3.1-TEE"
-    _JUDGE = "google/gemma-4-31B-turbo-TEE"
-    _FALLBACK = "deepseek-ai/DeepSeek-V3.1-TEE"
-    _THROTTLE_FALLBACK = "XiaomiMiMo/MiMo-V2-Flash-TEE"
-    _NARR = "google/gemma-4-31B-turbo-TEE"
+    _PARSE = "deepseek/deepseek-chat-v3.1"
+    _JUDGE = "google/gemma-4-31b-it"
+    _FALLBACK = "deepseek/deepseek-chat-v3.1"
+    _THROTTLE_FALLBACK = "xiaomi/mimo-v2-flash"
+    _NARR = "google/gemma-4-31b-it"
 
     LLM_JUDGE_PRIMARY = _JUDGE
     LLM_JUDGE_SECONDARY = _FALLBACK

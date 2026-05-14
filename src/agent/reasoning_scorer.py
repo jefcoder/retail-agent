@@ -21,42 +21,23 @@ from src.agent.types import Dialogue, JudgeResult
 # Base delay for rate-limit retries (seconds). Matches ProxyClient convention.
 RATE_LIMIT_RETRY_DELAY = 5
 
-# Per-call timeout for the judge HTTP request. 235B-class models
-# (MiniMax-M2.5, Qwen3-32B) generate the judge JSON in ~10–30s under light
-# load but tail out to 60s+ under contention when many judge requests hit the
-# same Chutes instance. Setting this too tight causes the call to
-# time out on the client side and rotate to the busier fallback models,
-# which 429 immediately when the others are saturated — the eval then bleeds
-# all 8 retries on infra failure rather than waiting one slow but successful
-# call out.
+# Per-call timeout for the judge HTTP request. Large models can take 60s+
+# under contention; setting this too tight causes client-side timeouts and
+# exhausts the retry budget on infra noise rather than one slow success.
 JUDGE_REQUEST_TIMEOUT = 90
 
 logger = logging.getLogger(__name__)
 
 PROXY_URL = "http://proxy:80"
 
-# Per-provider judge model lists. Same models, different naming conventions:
-# Chutes uses TEE-suffixed names (required by proxy allowlist on the Chutes
-# upstream); OpenRouter uses lowercase author/model names.
-#
+# OpenRouter judge model slugs (must match proxy allowlist in model_pairs.json).
 # These models score reasoning trajectories near-identically under the
-# decision-tree prompt below — same trajectory is rated within a single bin
-# across all of them.
-JUDGE_MODELS_BY_PROVIDER: dict[str, list[str]] = {
-    "chutes": [
-        "zai-org/GLM-5.1-TEE",
-        "google/gemma-4-31B-turbo-TEE",
-        "zai-org/GLM-5-TEE",
-    ],
-    "openrouter": [
-        "z-ai/glm-5.1",
-        "google/gemma-4-31b-it",
-        "z-ai/glm-5",
-    ],
-}
-
-# Kept for back-compat with any external caller that referenced the old name.
-JUDGE_MODELS = JUDGE_MODELS_BY_PROVIDER["openrouter"]
+# decision-tree prompt below.
+JUDGE_MODELS: list[str] = [
+    "z-ai/glm-5.1",
+    "google/gemma-4-31b-it",
+    "z-ai/glm-5",
+]
 
 _RANKED_FETCH_TIMEOUT = 5
 
@@ -69,17 +50,15 @@ _RANKED_CACHE_TTL_SECONDS = 30
 _ranked_cache: dict[str, tuple[float, list[str]]] = {}
 
 
-def _static_fallback(provider: str) -> list[str]:
-    models = JUDGE_MODELS_BY_PROVIDER.get(provider) or JUDGE_MODELS_BY_PROVIDER["openrouter"]
-    return list(models)
+def _static_fallback(_provider: str) -> list[str]:
+    return list(JUDGE_MODELS)
 
 
 def _fetch_ranked_models(provider: str, backend_url: str | None) -> list[str]:
-    """Fetch the per-provider ranked judge model list from the Backend.
+    """Fetch ranked judge model list from the Backend (OpenRouter).
 
-    Cached locally for ``_RANKED_CACHE_TTL_SECONDS`` to coalesce parallel
-    scoring bursts. Falls back to the static ``JUDGE_MODELS_BY_PROVIDER``
-    list on any failure so the judge keeps working when Backend is down.
+    Cached locally for ``_RANKED_CACHE_TTL_SECONDS``. Falls back to the static
+    ``JUDGE_MODELS`` list on any failure so the judge keeps working when Backend is down.
     """
     cached = _ranked_cache.get(provider)
     now = time.monotonic()
@@ -625,9 +604,8 @@ def score_reasoning_quality(
 
     models = _fetch_ranked_models(provider, backend_url)
     # Models that returned an unparseable 200 in this eval. Skipped on
-    # subsequent rotation steps so a single broken model (e.g. Chutes
-    # serving empty `content` for one TEE variant while reporting healthy
-    # active_instance_count) doesn't burn the full retry budget.
+    # subsequent rotation steps so one broken upstream model (e.g. empty
+    # `content` in message) does not burn the full retry budget.
     bad_models: set[str] = set()
     model_idx = 0
     inference_failed = 0
@@ -663,7 +641,7 @@ def score_reasoning_quality(
             )
 
             if resp.status_code == 200:
-                # Chutes sometimes returns {"choices":[{"message":{"content":null}}]}.
+                # Upstream may return {"choices":[{"message":{"content":null}}]}.
                 # Coerce to "" so downstream logging and parsing always see a str.
                 content = resp.json()["choices"][0]["message"]["content"] or ""
                 parsed = parse_judge_response(content)
@@ -678,9 +656,7 @@ def score_reasoning_quality(
                         "inference_failed": inference_failed,
                         "inference_total": inference_total,
                     }
-                # 200 OK with empty/unparseable body — model is broken upstream
-                # (Chutes serving an unhealthy TEE instance). Blacklist it for
-                # this eval and rotate immediately, with no rate-limit backoff.
+                # 200 OK with empty/unparseable body — blacklist for this eval and rotate.
                 inference_failed += 1
                 bad_models.add(model)
                 logger.warning(

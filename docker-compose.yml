@@ -30,7 +30,7 @@ services:
     environment:
       - SEARCH_SERVER_URL=${SEARCH_SERVER_URL:-search-server}
       - SEARCH_SERVER_PORT=${SEARCH_SERVER_PORT:-5632}
-      - CHUTES_HOST=${CHUTES_HOST:-llm.chutes.ai}
+      - OPENROUTER_HOST=${OPENROUTER_HOST:-openrouter.ai}
     ports:
       - "${PROXY_PORT:-8080}:80"
     networks:
@@ -84,9 +84,7 @@ services:
       - HOST_PROJECT_DIR=${PWD}
       - SANDBOX_IMAGE=${SANDBOX_IMAGE:-ghcr.io/oro-ai/oro/sandbox:${IMAGE_TAG:-stable}}
       - SANDBOX_NETWORK=sandbox-network
-      - CHUTES_API_KEY=${CHUTES_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - INFERENCE_PROVIDER=${INFERENCE_PROVIDER:-}
     entrypoint: [".venv/bin/python", "-m", "retailbench.test_runner"]
     networks:
       - main

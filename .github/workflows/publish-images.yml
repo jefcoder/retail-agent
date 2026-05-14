@@ -166,7 +166,7 @@ jobs:
           docker run -d --name proxy-smoke \
             -e SEARCH_SERVER_URL=search-server \
             -e SEARCH_SERVER_PORT=5632 \
-            -e CHUTES_HOST=llm.chutes.ai \
+            -e OPENROUTER_HOST=openrouter.ai \
             ${{ env.IMAGE_PREFIX }}/proxy@sha256:$digest
           sleep 5
           state=$(docker inspect -f '{{.State.Status}}' proxy-smoke)

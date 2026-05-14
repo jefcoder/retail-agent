@@ -96,7 +96,6 @@ def build_sandbox_command(
     max_workers: Optional[int] = None,
     timeout: Optional[float] = None,
     inference_access_token: Optional[str] = None,
-    inference_provider: Optional[str] = None,
     inference_base_url: Optional[str] = None,
     agent_container_path: Optional[str] = None,
 ) -> list[str]:
@@ -118,8 +117,7 @@ def build_sandbox_command(
             mounted read-only.
         max_workers: If set, passed as ``--max-workers`` to ``run_sandbox``.
         inference_access_token: If set, injected as ``INFERENCE_ACCESS_TOKEN``
-            (OpenRouter or Chutes API key for the proxy).
-        inference_provider: If set, injected as ``INFERENCE_PROVIDER`` env var.
+            (OpenRouter API key for the proxy).
         inference_base_url: If set, injected as ``INFERENCE_BASE_URL`` env var.
         agent_container_path: If set, use this as the ``--agent-file`` path
             inside the container instead of mounting *agent_host_path* to
@@ -165,8 +163,6 @@ def build_sandbox_command(
 
     if inference_access_token:
         cmd.extend(["-e", f"INFERENCE_ACCESS_TOKEN={inference_access_token}"])
-    if inference_provider:
-        cmd.extend(["-e", f"INFERENCE_PROVIDER={inference_provider}"])
     if inference_base_url:
         cmd.extend(["-e", f"INFERENCE_BASE_URL={inference_base_url}"])
 

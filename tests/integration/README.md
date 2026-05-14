@@ -80,7 +80,7 @@ You can test the GitHub Actions workflow locally using [Act](https://github.com/
    ```bash
    # Create secrets file
    cat > .secrets << EOF
-   CHUTES_API_KEY=your-api-key
+   OPENROUTER_API_KEY=your-api-key
    EOF
    
    # Run workflow

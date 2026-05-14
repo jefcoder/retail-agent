@@ -5,7 +5,7 @@ This directory contains Docker configuration for running ShoppingBench services 
 ## Services
 
 - **Search Server**: Provides product search functionality
-- **Proxy**: Nginx reverse proxy that routes requests to search server and Chutes API
+- **Proxy**: Nginx reverse proxy that routes requests to search server and OpenRouter (inference)
 
 ## Search Server
 
@@ -221,7 +221,7 @@ The proxy service acts as a gateway for sandboxed agent containers, providing co
 - **Sandbox Network**: Internal Docker network (no internet access) for agent containers
 - **Path-based Routing**:
   - `/search/*` → search-server
-  - `/inference/*` → Chutes API (external, auth forwarded from sandbox client)
+  - `/inference/*` → OpenRouter API (external, auth forwarded from sandbox client)
 
 ### Network Topology
 

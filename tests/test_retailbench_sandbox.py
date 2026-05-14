@@ -195,6 +195,8 @@ class TestBuildSandboxCommand:
         )
         assert not any("INFERENCE_ACCESS_TOKEN" in arg for arg in cmd)
         assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
+
+    def test_inference_access_token_omitted_when_empty(self):
         cmd = build_sandbox_command(
             agent_host_path="/host/agent.py",
             logs_host_path="/host/logs",
@@ -204,21 +206,14 @@ class TestBuildSandboxCommand:
         )
         assert not any("INFERENCE_ACCESS_TOKEN" in arg for arg in cmd)
         assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
-        cmd = build_sandbox_command(
-            agent_host_path="/host/agent.py",
-            logs_host_path="/host/logs",
-            problem_file_arg="/tmp/problems.jsonl",
-            output_path="/app/logs/output.jsonl",
-            inference_provider="chutes",
-        )
-        assert "INFERENCE_PROVIDER=chutes" in cmd
 
-    def test_inference_provider_omitted_when_none(self):
+    def test_inference_provider_never_injected(self):
         cmd = build_sandbox_command(
             agent_host_path="/host/agent.py",
             logs_host_path="/host/logs",
             problem_file_arg="/tmp/problems.jsonl",
             output_path="/app/logs/output.jsonl",
+            inference_access_token="tok",
         )
         assert not any("INFERENCE_PROVIDER" in arg for arg in cmd)
 
@@ -248,13 +243,12 @@ class TestBuildSandboxCommand:
             problem_file_arg="/tmp/problems.jsonl",
             output_path="/app/logs/output.jsonl",
             inference_access_token="test-token-123",
-            inference_provider="custom",
             inference_base_url="https://custom.example.com",
         )
         assert "INFERENCE_ACCESS_TOKEN=test-token-123" in cmd
         assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
-        assert "INFERENCE_PROVIDER=custom" in cmd
         assert "INFERENCE_BASE_URL=https://custom.example.com" in cmd
+        assert not any("INFERENCE_PROVIDER" in arg for arg in cmd)
 
     def test_security_hardening_flags_present(self):
         cmd = build_sandbox_command(

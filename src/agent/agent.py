@@ -28,21 +28,12 @@ logger = logging.getLogger(__name__)
 
 MAX_STEPS = 25
 
-# Per-provider default model. Naming conventions differ across providers
-# (Chutes uses TEE-suffixed author/Model; OpenRouter uses lowercase
-# author/model), so the agent picks the right name based on the
-# INFERENCE_PROVIDER env var may be set by the sandbox / test harness.
-_DEFAULT_MODEL_BY_PROVIDER: Dict[str, str] = {
-    "chutes": "deepseek-ai/DeepSeek-V3.2-TEE",
-    "openrouter": "deepseek/deepseek-v3.2",
-}
+# Default chat model (OpenRouter slug; must be in docker/proxy/model_pairs.json allowlist).
+_DEFAULT_CHAT_MODEL = "deepseek/deepseek-v3.2"
 
 
 def _default_model_for_provider() -> str:
-    provider = getenv("INFERENCE_PROVIDER", "openrouter")
-    return _DEFAULT_MODEL_BY_PROVIDER.get(
-        provider, _DEFAULT_MODEL_BY_PROVIDER["openrouter"]
-    )
+    return getenv("DEFAULT_CHAT_MODEL", _DEFAULT_CHAT_MODEL)
 
 
 _proxy = ProxyClient(timeout=120, max_retries=2)
