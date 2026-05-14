@@ -1,4 +1,4 @@
-"""Envelope format tests for ORO-907 sandbox->validator IPC."""
+"""Envelope format tests for ORO-907 sandbox output IPC."""
 
 import json
 from unittest.mock import MagicMock, patch

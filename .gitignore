@@ -27,6 +27,6 @@ resources/documents.jsonl
 .worktrees/
 .specstory/
 CLAUDE.md
-subnet/logs/
+retailbench/logs/
 data/single_problem.json
 data/test_agent.py

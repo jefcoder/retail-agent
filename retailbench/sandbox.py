@@ -1,7 +1,7 @@
-"""Shared Docker sandbox utilities for test_runner and validator.
+"""Shared Docker sandbox utilities for the local test runner.
 
 Centralises sandbox image/network configuration, host-path mapping, problem
-loading, and Docker command construction so the two call-sites stay in sync.
+loading, and Docker command construction.
 """
 
 import json
@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 
-# Docker configuration — shared between test_runner and validator
 SANDBOX_IMAGE = os.environ.get("SANDBOX_IMAGE", "ghcr.io/oro-ai/oro/sandbox:latest")
 SANDBOX_NETWORK = os.environ.get("SANDBOX_NETWORK", "sandbox-network")
 HOST_PROJECT_DIR = os.environ.get("HOST_PROJECT_DIR")
@@ -25,10 +24,9 @@ def host_path(path: str, workspace_dir: Optional[str] = None) -> str:
 
     Args:
         path: The container-local path to translate.
-        workspace_dir: If provided (validator case), strip this prefix from
-            *path* before joining with ``HOST_PROJECT_DIR``.  When ``None``
-            (test_runner case), the function strips well-known prefixes
-            (``/app/``, ``/workspace/``).
+        workspace_dir: If provided, strip this prefix from *path* before joining
+            with ``HOST_PROJECT_DIR``.  When ``None`` (test runner case), the
+            function strips well-known prefixes (``/app/``, ``/workspace/``).
 
     Returns:
         The translated host path, or *path* unchanged when ``HOST_PROJECT_DIR``
@@ -43,7 +41,6 @@ def host_path(path: str, workspace_dir: Optional[str] = None) -> str:
             return str(Path(HOST_PROJECT_DIR) / relative)
         return path
 
-    # test_runner: strip well-known container prefixes
     if path.startswith("/app/"):
         return str(Path(HOST_PROJECT_DIR) / path[len("/app/") :])
     if path.startswith("/workspace/"):
@@ -61,10 +58,8 @@ def load_problems(problem_path: Path) -> list[dict]:
         content = f.read().strip()
     if not content:
         return []
-    # JSON array format (e.g. problem_suite_v1.json)
     if content.startswith("["):
         return json.loads(content)
-    # JSONL format (one JSON object per line)
     problems: list[dict] = []
     for line in content.splitlines():
         line = line.strip()
@@ -109,11 +104,10 @@ def build_sandbox_command(
 
     Args:
         agent_host_path: Host path to the agent Python file.  When the agent
-            file lives inside the logs directory (validator case), pass an
-            empty string and set *agent_container_path* to the path within the
-            already-mounted ``/app/logs`` volume — this avoids a separate file
-            bind mount which can fail on Docker Desktop for Mac due to
-            filesystem caching delays.
+            file lives inside the logs directory, pass an empty string and set
+            *agent_container_path* to the path within the already-mounted
+            ``/app/logs`` volume — this avoids a separate file bind mount which
+            can fail on Docker Desktop for Mac due to filesystem caching delays.
         logs_host_path: Host path to the logs directory.
         problem_file_arg: Container-side path to the problem file (passed as
             ``--problem-file`` to ``run_sandbox``).
@@ -127,13 +121,10 @@ def build_sandbox_command(
             and ``INFERENCE_ACCESS_TOKEN`` env vars (the legacy var is kept for
             agent code that hasn't migrated).
         inference_provider: If set, injected as ``INFERENCE_PROVIDER`` env var.
-            Identifies which inference backend the access token belongs to.
         inference_base_url: If set, injected as ``INFERENCE_BASE_URL`` env var.
-            Default agent template uses this to route inference calls.
         agent_container_path: If set, use this as the ``--agent-file`` path
             inside the container instead of mounting *agent_host_path* to
-            ``/app/user_agent.py``.  Useful when the agent file is already
-            accessible via the logs volume mount.
+            ``/app/user_agent.py``.
 
     Returns:
         Complete ``docker run`` command as a list of strings.
@@ -146,7 +137,6 @@ def build_sandbox_command(
         "--rm",
         "--network",
         network,
-        # Resource limits — prevent runaway miner agents from impacting the host
         "--memory",
         "4g",
         "--memory-swap",
@@ -155,14 +145,10 @@ def build_sandbox_command(
         "256",
         "--ulimit",
         "nofile=1024:1024",
-        # CPU priority — validator + search-server (default cpu-shares=1024) preempt the
-        # sandbox under contention so heartbeats and the work-claim loop stay responsive.
-        # Sandbox still uses idle CPU; this only matters when the host is saturated.
         "--cpu-shares",
         "512",
         "--user",
         "1000:1000",
-        # Security hardening — minimize container attack surface
         "--cap-drop=ALL",
         "--security-opt",
         "no-new-privileges=true",
@@ -173,7 +159,6 @@ def build_sandbox_command(
         "SANDBOX_PROXY_URL=http://proxy:80",
     ]
 
-    # Only mount agent file separately when it's not already in the logs dir
     if not agent_container_path:
         cmd.extend(["-v", f"{agent_host_path}:/app/user_agent.py:ro"])
 

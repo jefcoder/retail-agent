@@ -1,4 +1,4 @@
-"""Split sandbox output.jsonl by problem for per-problem trajectory upload."""
+"""Split sandbox output.jsonl by problem for per-problem trajectory handling."""
 
 from __future__ import annotations
 
@@ -12,20 +12,17 @@ def split_output_by_problem(
     output_file: Path,
     problem_ids: list[UUID],
 ) -> dict[str, bytes]:
-    """Read sandbox output.jsonl and group per-problem upload payloads.
+    """Read sandbox output.jsonl and group per-problem payloads.
 
-    Sandbox writes one envelope dict per line (ORO-907 IPC):
+    Sandbox writes one envelope dict per line:
     ``{"problem_id": "...", "status": "...", "dialogue": [steps], ...}``.
-    The Frontend's ``Trajectory`` type is ``TrajectoryStep[]``, so we
-    extract ``dialogue`` and use *that* JSON array as the upload payload —
-    not the whole envelope. The envelope's status / timing / error fields
-    are not lost: they flow back via the progress-report path
-    (ProgressReporter → Backend → eval-run detail endpoint).
+    Extract ``dialogue`` and use that JSON array as the payload (not the whole
+    envelope).
 
-    Returns ``{problem_id_str: bytes_to_upload}`` (un-gzipped — caller
-    handles compression). If parsing produces zero entries we fall back
-    to uploading the entire file under ``problem_ids[0]`` so a corrupt
-    run still has *some* artifact attached for forensics.
+    Returns ``{problem_id_str: bytes_to_upload}`` (un-gzipped — caller handles
+    compression). If parsing produces zero entries we fall back to uploading the
+    entire file under ``problem_ids[0]`` so a corrupt run still has *some*
+    artifact for forensics.
     """
     problem_lines: dict[str, bytes] = {}
 
@@ -47,13 +44,6 @@ def split_output_by_problem(
         pid = str(envelope["problem_id"])
         dialogue = envelope.get("dialogue") or []
         status = str(envelope.get("status") or "")
-        # ORO-1147: when the agent terminated abnormally (TIMED_OUT, FAILED,
-        # crash) and the sandbox couldn't capture a dialogue, the envelope
-        # has dialogue=None + error={type,message}. Writing `[]` here loses
-        # that context — downstream consumers (TrajectoryViewer, training
-        # corpus) can't tell "captured nothing" from "literally zero steps."
-        # Synthesize a single trajectory step preserving the error so the
-        # array shape stays valid and the failure context survives.
         if not dialogue and status and status != "SUCCESS":
             err_obj = envelope.get("error")
             if isinstance(err_obj, dict):

@@ -17,8 +17,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    labels:
-      com.centurylinklabs.watchtower.scope: "oro-validator"
     networks:
       - main
     restart: unless-stopped
@@ -33,8 +31,6 @@ services:
       - SEARCH_SERVER_URL=${SEARCH_SERVER_URL:-search-server}
       - SEARCH_SERVER_PORT=${SEARCH_SERVER_PORT:-5632}
       - CHUTES_HOST=${CHUTES_HOST:-llm.chutes.ai}
-      # Backend URL for fetching the live model allowlist. Defaults to
-      # production; staging/dev override via BACKEND_URL env var.
       - BACKEND_URL=${BACKEND_URL:-https://api.oroagents.com}
       - BACKEND_HOST=${BACKEND_HOST:-api.oroagents.com}
     ports:
@@ -48,8 +44,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    labels:
-      com.centurylinklabs.watchtower.scope: "oro-validator"
     restart: unless-stopped
 
   sandbox:
@@ -72,133 +66,11 @@ services:
       - tools
     restart: "no"
 
-  index-builder:
-    build:
-      context: .
-      dockerfile: docker/index-builder/Dockerfile
-    container_name: shoppingbench-index-builder
-    volumes:
-      - ./resources:/data/resources:ro
-      - ./indexes:/data/indexes
-    profiles:
-      - tools
-    restart: "no"
-
-  # Production validator — full evaluation loop with Backend API
-  validator:
-    image: ghcr.io/oro-ai/oro/validator:${IMAGE_TAG:-stable}
-    build:
-      context: .
-      dockerfile: docker/validator/Dockerfile
-    profiles:
-      - validator
-    depends_on:
-      search-server:
-        condition: service_healthy
-      proxy:
-        condition: service_healthy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOME}/.bittensor/wallets:/root/.bittensor/wallets:ro
-      - ./logs:/app/logs
-      - validator-data:/root/.validator
-    environment:
-      - DOCKER_CONTEXT=default
-      - HOST_PROJECT_DIR=${PWD}
-      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-ghcr.io/oro-ai/oro/sandbox:${IMAGE_TAG:-stable}}
-      - SANDBOX_NETWORK=sandbox-network
-      - SANDBOX_MAX_WORKERS=${SANDBOX_MAX_WORKERS:-}
-      - REASONING_MAX_WORKERS=${REASONING_MAX_WORKERS:-}
-      - SEARCH_SERVER_URL=http://search-server:5632
-      - WALLET_NAME=${WALLET_NAME:-default}
-      - WALLET_HOTKEY=${WALLET_HOTKEY:-default}
-      - NETUID=${NETUID:-15}
-      - SUBTENSOR_NETWORK=${SUBTENSOR_NETWORK:-finney}
-      - ORO_BACKEND_URL=${BACKEND_URL:-https://api.oroagents.com}
-      - WATCHTOWER_TOKEN=${WATCHTOWER_TOKEN:-oro-watchtower-token}
-    command:
-      - "--wallet.name"
-      - "${WALLET_NAME:-default}"
-      - "--wallet.hotkey"
-      - "${WALLET_HOTKEY:-default}"
-      - "--netuid"
-      - "${NETUID:-15}"
-      - "--subtensor.network"
-      - "${SUBTENSOR_NETWORK:-finney}"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-    labels:
-      com.centurylinklabs.watchtower.scope: "oro-validator"
-    networks:
-      - main
-    restart: unless-stopped
-
-  # Prometheus + nginx-prometheus-exporter. Default: local-only, 9090 bound
-  # to 127.0.0.1 so the metrics surface never leaks to the public internet.
-  # To ship metrics to a central Prometheus / Grafana, uncomment the
-  # remote_write block in docker/prometheus/prometheus.yml.
-  # Footprint: ~150 MB RAM, <1% of one core idle.
-  prometheus:
-    image: prom/prometheus:v2.55.1
-    container_name: shoppingbench-prometheus
-    profiles:
-      - validator
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=15d
-      - --web.listen-address=:9090
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    ports:
-      - "127.0.0.1:9090:9090"
-    networks:
-      - main
-    restart: unless-stopped
-
-  proxy-exporter:
-    image: nginx/nginx-prometheus-exporter:1.4.0
-    container_name: shoppingbench-proxy-exporter
-    profiles:
-      - validator
-    command:
-      - --nginx.scrape-uri=http://proxy:8081/stub_status
-    networks:
-      - main
-    depends_on:
-      proxy:
-        condition: service_healthy
-    restart: unless-stopped
-
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: shoppingbench-watchtower
-    profiles:
-      - validator
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DOCKER_API_VERSION=1.44
-      - WATCHTOWER_HTTP_API_UPDATE=true
-      - WATCHTOWER_HTTP_API_PERIODIC_POLLS=0
-      - WATCHTOWER_HTTP_API_TOKEN=${WATCHTOWER_TOKEN:-oro-watchtower-token}
-      - WATCHTOWER_SCOPE=oro-validator
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_LOG_LEVEL=${WATCHTOWER_LOG_LEVEL:-info}
-    labels:
-      com.centurylinklabs.watchtower.scope: "oro-validator"
-    networks:
-      - main
-    restart: unless-stopped
-
-  # Local testing — run agent against test problems, print score, exit
   test:
-    image: ghcr.io/oro-ai/oro/validator:${IMAGE_TAG:-stable}
+    image: retailbench-evaluate:${IMAGE_TAG:-latest}
     build:
       context: .
-      dockerfile: docker/validator/Dockerfile
+      dockerfile: docker/evaluate/Dockerfile
     profiles:
       - test
     depends_on:
@@ -217,16 +89,10 @@ services:
       - CHUTES_API_KEY=${CHUTES_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - INFERENCE_PROVIDER=${INFERENCE_PROVIDER:-}
-    # Use the venv interpreter — bare `python` is the system Python and
-    # has no project dependencies installed (e.g. `requests`).
-    entrypoint: [".venv/bin/python", "-m", "subnet.test_runner"]
+    entrypoint: [".venv/bin/python", "-m", "retailbench.test_runner"]
     networks:
       - main
     restart: "no"
-
-volumes:
-  validator-data:
-  prometheus-data:
 
 networks:
   main:

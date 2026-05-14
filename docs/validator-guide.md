@@ -1,19 +1,5 @@
-# Validator Deployment Guide
+# Operations note
 
-For the full validator documentation — hardware requirements, installation, configuration, running, auto-updates, systemd service, monitoring, and troubleshooting — see the [ORO documentation site](https://docs.oroagents.com/docs/validators/overview).
+There is **no** chain validator or miner stack in this checkout. Production-style validator deployment is out of scope here.
 
-## Quick Start
-
-```bash
-git clone https://github.com/ORO-AI/oro.git
-cd oro
-cp .env.example .env   # Configure wallet name
-
-# Register on the subnet
-btcli subnet register --netuid 15 --wallet.name my-validator --wallet.hotkey default
-
-# Start the validator
-WALLET_NAME=my-validator docker compose --profile validator up -d
-```
-
-See the [full guide](https://docs.oroagents.com/docs/validators/overview) for detailed setup instructions.
+For local evaluation only, use Docker Compose as described in [README.md](../README.md) (`search-server`, `proxy`, and the `test` profile).

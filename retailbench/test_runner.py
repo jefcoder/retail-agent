@@ -4,7 +4,7 @@ Usage (via Docker Compose):
     docker compose run test --agent-file my_agent.py
 
 Usage (direct):
-    python -m subnet.test_runner --agent-file my_agent.py
+    python -m retailbench.test_runner --agent-file my_agent.py
 """
 
 import argparse
@@ -19,13 +19,12 @@ from pathlib import Path
 SEARCH_SERVER_URL = os.environ.get("SEARCH_SERVER_URL", "http://search-server:5632")
 os.environ.setdefault("SEARCH_SERVER_URL", SEARCH_SERVER_URL)
 
-# ProblemScorer uses HTTP calls to search-server — no pyserini/Java needed
 from src.agent.problem_scorer import ProblemScorer  # noqa: E402
 from src.agent.scoring import is_problem_successful, compute_aggregate  # noqa: E402
 from src.agent.reasoning_scorer import score_reasoning_quality  # noqa: E402
 from src.agent.scoring import reasoning_coefficient, blend_final_score  # noqa: E402
 
-from subnet.sandbox import (  # noqa: E402
+from retailbench.sandbox import (  # noqa: E402
     SANDBOX_IMAGE,
     HOST_PROJECT_DIR,
     host_path,
@@ -34,7 +33,6 @@ from subnet.sandbox import (  # noqa: E402
     attach_title_embeddings,
 )
 
-# Default test problem file — problem suite v1 (90 problems)
 DEFAULT_PROBLEM_FILE = "data/suites/problem_suite_v3.json"
 
 
@@ -84,7 +82,6 @@ def _score_output(
         Score (0.0 - 1.0), or -1.0 on failure.
     """
 
-    # Build rewards and vouchers lookup, grouped by task
     rewards = {}
     vouchers = {}
     task_for_query = {}
@@ -93,7 +90,6 @@ def _score_output(
         reward = p.get("reward")
         category = p.get("category", "Product").lower()
         if query and reward:
-            # Attach precomputed title embeddings to the reward dict(s)
             attach_title_embeddings(reward, p.get("reward_title_embeddings"))
             rewards[query] = reward
             task_for_query[query] = category
@@ -101,7 +97,6 @@ def _score_output(
             if voucher:
                 vouchers[query] = voucher
 
-    # Create scorers per task type
     scorers = {}
     for task in set(task_for_query.values()):
         task_rewards = {q: r for q, r in rewards.items() if task_for_query[q] == task}
@@ -122,13 +117,8 @@ def _score_output(
             parsed = json.loads(line)
             if not parsed:
                 continue
-            # Sandbox writes one envelope per problem to output.jsonl —
-            # `{"problem_id": ..., "status": ..., "dialogue": [...]}`. Older
-            # sandbox images wrote the raw dialogue list instead, so accept
-            # both shapes.
             if isinstance(parsed, dict):
                 if parsed.get("status") and parsed.get("status") != "SUCCESS":
-                    # FAILED / TIMED_OUT envelopes have no scorable dialogue.
                     continue
                 output = parsed.get("dialogue") or []
             else:
@@ -156,7 +146,6 @@ def _score_output(
 
     agg = compute_aggregate(scores, total_problems=len(problems))
 
-    # Per-category breakdown
     categories = sorted(set(s["category"] for s in scores))
     if len(categories) > 1:
         print()
@@ -173,7 +162,6 @@ def _score_output(
 
     success_rate = agg["success_rate"]
 
-    # Reasoning quality scoring (uses same inference token as sandbox)
     if skip_reasoning or not api_key:
         return success_rate
 
@@ -217,21 +205,8 @@ def run_test(
     timeout: int = 1800,
     skip_reasoning: bool = False,
 ) -> float:
-    """Run agent against test problems and return score.
-
-    Args:
-        agent_file: Path to the agent Python file.
-        problem_file: Path to the problem file (JSON array or JSONL).
-        max_workers: Maximum parallel workers for sandbox execution.
-        timeout: Timeout in seconds for sandbox execution.
-
-    Returns:
-        Score (0.0 - 1.0), or -1.0 on failure.
-    """
+    """Run agent against test problems and return score."""
     agent_path = Path(agent_file)
-    # Resolve relative paths against the read-only /workspace mount used
-    # by `docker compose run test` so `--agent-file my_agent.py` works
-    # without forcing miners to think about container paths.
     if not agent_path.is_absolute() and not agent_path.exists():
         for prefix in [Path("/workspace"), Path("/app"), Path(".")]:
             candidate = prefix / agent_file
@@ -242,21 +217,17 @@ def run_test(
         print(f"Error: Agent file not found: {agent_path}", file=sys.stderr)
         return -1.0
 
-    # Set up output paths
     logs_dir = Path("/app/logs") if HOST_PROJECT_DIR else Path("logs")
     logs_dir.mkdir(parents=True, exist_ok=True)
     eval_id = "local-test"
     output_file = logs_dir / f"sandbox_output_{eval_id}.jsonl"
 
-    # Clean up any previous test output
     if output_file.exists():
         output_file.unlink()
 
-    # Resolve paths for Docker volume mounts
     host_agent = host_path(str(agent_path.resolve()))
     host_logs = host_path(str(logs_dir.resolve()))
 
-    # Problem file handling
     problem_path = Path(problem_file)
     if not problem_path.is_absolute():
         for prefix in [Path("/workspace"), Path("/app"), Path(".")]:
@@ -274,7 +245,6 @@ def run_test(
         print(f"Error: No problems loaded from {problem_file}", file=sys.stderr)
         return -1.0
 
-    # Convert to JSONL for sandbox (it expects JSONL format)
     sandbox_problems = logs_dir / "test_problems.jsonl"
     _write_jsonl(problems, sandbox_problems)
     host_problem = host_path(str(sandbox_problems.resolve()))
@@ -285,7 +255,6 @@ def run_test(
     print()
     print("Starting sandbox...")
 
-    # Build docker run command
     api_key, provider, base_url = _resolve_inference_credentials()
     print(f"Provider: {provider or '(none)'}")
     cmd = build_sandbox_command(
@@ -318,7 +287,6 @@ def run_test(
     if result.returncode != 0:
         print(f"Warning: Sandbox exited with code {result.returncode}, scoring partial results", file=sys.stderr)
 
-    # Score using ProblemScorer (HTTP calls to search-server, no pyserini)
     print()
     print("Scoring results...")
     return _score_output(
@@ -365,8 +333,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Fail fast on a missing inference key — without one the agent's
-    # inference calls fail and the run aborts with empty output.
     api_key, provider, _ = _resolve_inference_credentials()
     if not api_key:
         print(

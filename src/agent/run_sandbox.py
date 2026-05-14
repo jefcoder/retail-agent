@@ -96,7 +96,7 @@ def main():
         logger.error("No problems loaded")
         sys.exit(1)
 
-    # Execute problems (scoring will be done by validator, not sandbox)
+    # Execute problems (scoring is performed outside the sandbox, e.g. test runner)
     logger.info(f"Executing {len(problems)} problems...")
     results = execute_problems_parallel(
         problems=problems,
@@ -124,7 +124,7 @@ def main():
     logger.info(f"Execution summary:\n{summary_json}")
 
     # Log failures but exit cleanly — timeouts and agent errors are expected
-    # outcomes, not infrastructure failures. The validator scores partial results.
+    # outcomes, not infrastructure failures. Downstream scoring may use partial results.
     failed = formatted_results["summary"]["failed"]
     total = formatted_results["summary"]["total"]
     if failed > 0:

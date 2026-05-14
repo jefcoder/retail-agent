@@ -8,8 +8,7 @@ logs/
 *.log
 server.log
 
-# Data files (test data, not needed for search server but needed for validator)
-# Note: data/ is included for the validator Dockerfile; other images don't COPY it
+# Data files (evaluate image COPY data/); search-server image does not need data/
 !data/
 *.jsonl
 !resources/documents.jsonl

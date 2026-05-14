@@ -1,11 +1,10 @@
-"""Tests for subnet.sandbox shared utilities."""
+"""Tests for retailbench.sandbox shared utilities."""
 
 import json
 import os
 from unittest import mock
 
-
-from subnet.sandbox import (
+from retailbench.sandbox import (
     host_path,
     load_problems,
     build_sandbox_command,
@@ -13,57 +12,47 @@ from subnet.sandbox import (
 )
 
 
-# ---------------------------------------------------------------------------
-# host_path()
-# ---------------------------------------------------------------------------
-
-
 class TestHostPath:
     """Tests for host_path() volume-mount translation."""
 
     def test_no_host_project_dir_returns_unchanged(self):
         with mock.patch.dict(os.environ, {}, clear=False):
-            with mock.patch("subnet.sandbox.HOST_PROJECT_DIR", None):
+            with mock.patch("retailbench.sandbox.HOST_PROJECT_DIR", None):
                 assert host_path("/app/data/test.jsonl") == "/app/data/test.jsonl"
 
     def test_app_prefix_stripped(self):
-        with mock.patch("subnet.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
+        with mock.patch("retailbench.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
             assert (
                 host_path("/app/data/test.jsonl")
                 == "/home/user/project/data/test.jsonl"
             )
 
     def test_workspace_prefix_stripped(self):
-        with mock.patch("subnet.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
+        with mock.patch("retailbench.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
             assert (
                 host_path("/workspace/data/test.jsonl")
                 == "/home/user/project/data/test.jsonl"
             )
 
     def test_no_matching_prefix_returns_unchanged(self):
-        with mock.patch("subnet.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
+        with mock.patch("retailbench.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
             assert host_path("/other/path/file.py") == "/other/path/file.py"
 
     def test_workspace_dir_param_strips_workspace(self):
-        with mock.patch("subnet.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
+        with mock.patch("retailbench.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
             result = host_path(
-                "/opt/validator/logs/output.jsonl",
-                workspace_dir="/opt/validator",
+                "/opt/evaluate/logs/output.jsonl",
+                workspace_dir="/opt/evaluate",
             )
             assert result == "/home/user/project/logs/output.jsonl"
 
     def test_workspace_dir_param_no_match_returns_unchanged(self):
-        with mock.patch("subnet.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
+        with mock.patch("retailbench.sandbox.HOST_PROJECT_DIR", "/home/user/project"):
             result = host_path(
                 "/other/path/file.py",
-                workspace_dir="/opt/validator",
+                workspace_dir="/opt/evaluate",
             )
             assert result == "/other/path/file.py"
-
-
-# ---------------------------------------------------------------------------
-# load_problems()
-# ---------------------------------------------------------------------------
 
 
 class TestLoadProblems:
@@ -93,11 +82,6 @@ class TestLoadProblems:
         assert len(result) == 2
         assert result[0]["query"] == "a"
         assert result[1]["query"] == "b"
-
-
-# ---------------------------------------------------------------------------
-# build_sandbox_command()
-# ---------------------------------------------------------------------------
 
 
 class TestBuildSandboxCommand:
@@ -172,28 +156,22 @@ class TestBuildSandboxCommand:
         assert "custom:latest" in cmd
 
     def test_resource_limits_present(self):
-        """Verify Docker resource limits are included in the command."""
         cmd = build_sandbox_command(
             agent_host_path="/host/agent.py",
             logs_host_path="/host/logs",
             problem_file_arg="/tmp/problems.jsonl",
             output_path="/app/logs/output.jsonl",
         )
-        # Memory
         mem_idx = cmd.index("--memory")
         assert cmd[mem_idx + 1] == "4g"
         swap_idx = cmd.index("--memory-swap")
         assert cmd[swap_idx + 1] == "4g"
-        # PIDs
         pids_idx = cmd.index("--pids-limit")
         assert cmd[pids_idx + 1] == "256"
-        # File descriptors
         ulimit_idx = cmd.index("--ulimit")
         assert cmd[ulimit_idx + 1] == "nofile=1024:1024"
-        # Non-root user
         user_idx = cmd.index("--user")
         assert cmd[user_idx + 1] == "1000:1000"
-        # CPU shares — sandbox at half the default so validator preempts under contention
         shares_idx = cmd.index("--cpu-shares")
         assert cmd[shares_idx + 1] == "512"
 
@@ -203,11 +181,10 @@ class TestBuildSandboxCommand:
             logs_host_path="/host/logs",
             problem_file_arg="/tmp/problems.jsonl",
             output_path="/app/logs/output.jsonl",
-            inference_access_token="miner-token-abc",
+            inference_access_token="access-token-abc",
         )
-        # Token should be injected as both CHUTES_ACCESS_TOKEN and INFERENCE_ACCESS_TOKEN env vars
-        assert "CHUTES_ACCESS_TOKEN=miner-token-abc" in cmd
-        assert "INFERENCE_ACCESS_TOKEN=miner-token-abc" in cmd
+        assert "CHUTES_ACCESS_TOKEN=access-token-abc" in cmd
+        assert "INFERENCE_ACCESS_TOKEN=access-token-abc" in cmd
 
     def test_inference_access_token_omitted_when_none(self):
         cmd = build_sandbox_command(
@@ -282,28 +259,18 @@ class TestBuildSandboxCommand:
         assert "INFERENCE_BASE_URL=https://custom.example.com" in cmd
 
     def test_security_hardening_flags_present(self):
-        """Verify Docker security hardening flags are included."""
         cmd = build_sandbox_command(
             agent_host_path="/host/agent.py",
             logs_host_path="/host/logs",
             problem_file_arg="/tmp/problems.jsonl",
             output_path="/app/logs/output.jsonl",
         )
-        # Drop all Linux capabilities
         assert "--cap-drop=ALL" in cmd
-        # Prevent privilege escalation via setuid
         sec_idx = cmd.index("--security-opt")
         assert cmd[sec_idx + 1] == "no-new-privileges=true"
-        # Read-only root filesystem
         assert "--read-only" in cmd
-        # Writable /tmp with noexec (Python tempfile needs /tmp)
         tmpfs_idx = cmd.index("--tmpfs")
         assert "/tmp:rw,noexec,nosuid,size=256m" in cmd[tmpfs_idx + 1]
-
-
-# ---------------------------------------------------------------------------
-# attach_title_embeddings()
-# ---------------------------------------------------------------------------
 
 
 class TestAttachTitleEmbeddings:
@@ -342,4 +309,3 @@ class TestAttachTitleEmbeddings:
     def test_non_dict_non_list_reward_is_noop(self):
         reward = "just-a-string"
         attach_title_embeddings(reward, [0.1, 0.2])
-        # No crash, no mutation possible on a string

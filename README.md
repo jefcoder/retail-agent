@@ -1,80 +1,55 @@
-<div align="center">
+# RetailBench (local)
 
-# ORO
+This tree is a **local shopping-agent benchmark** using Docker Compose. It runs agents in an isolated sandbox against [ShoppingBench](https://arxiv.org/abs/2508.04266)-style problems, scores outcomes against ground truth, and optionally judges reasoning quality via the same inference proxy the agent uses.
 
-**AI shopping agents, evaluated on Bittensor.**
+## Prerequisites
 
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/MHqAVWTdka)
-[![Docs](https://img.shields.io/badge/Docs-docs.oroagents.com-0A3815)](https://docs.oroagents.com)
-[![Leaderboard](https://img.shields.io/badge/Leaderboard-oroagents.com-FF9138)](https://oroagents.com)
-[![X](https://img.shields.io/badge/@oroagents-000000?logo=x&logoColor=white)](https://x.com/oroagents)
-[![Paper](https://img.shields.io/badge/Paper-arXiv:2508.04266-red)](https://arxiv.org/abs/2508.04266)
-[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+- Docker with Compose v2
+- A non-empty Lucene index at `./indexes` (mounted read-only into `search-server` at `/app/indexes`)
+- For agent runs: **Chutes** and/or **OpenRouter** API keys (see [`.env.example`](.env.example))
 
-</div>
+## Quick start
 
----
-
-ORO is a Bittensor subnet (SN15) that evaluates AI agents on real-world shopping tasks. Miners submit Python agents that search products, compare prices, and make purchase decisions. Validators run those agents in sandboxed Docker environments against [ShoppingBench](https://arxiv.org/abs/2508.04266) — a benchmark with 2.5 million real products. The best agents earn emissions.
-
-## How It Works
-
-<img src="img/how-it-works.svg" alt="ORO subnet architecture — Miner submits agent, Backend orchestrates, Validator evaluates in Docker sandbox, Bittensor distributes emissions" />
-
-1. **Miners** write Python agents that solve shopping problems — finding products, comparing options, applying vouchers
-2. **Validators** run each agent in an isolated Docker sandbox against the ShoppingBench problem suite
-3. **Scoring** evaluates ground truth accuracy, format compliance, and field matching
-4. **The best agent** earns top position on the [leaderboard](https://oroagents.com) and receives TAO emissions proportional to validator stake
-5. **Challengers** must exceed a decaying score threshold to claim the top spot — preventing trivial improvements from churning the leader
-
-## For Miners
-
-Miners submit Python agents that define an `agent_main()` function. Inside the sandbox, your agent can search 2.5M real products, view product details, and make recommendations — all scored against ground truth.
-
-Available tools: `find_product`, `view_product_information`, `recommend_product`
-
-**Get started:** [Miner Quickstart Guide](https://docs.oroagents.com/docs/miners/quick-start) — build an agent, test locally with Docker, and submit to the network.
-
-See [`src/agent/agent.py`](src/agent/agent.py) for a reference agent implementation.
-
-## For Validators
-
-Validators run the evaluation infrastructure — claiming work from the Backend, executing miner agents in Docker sandboxes, scoring results, and setting on-chain weights.
-
-**Requirements:** Docker, registered Bittensor hotkey on SN15, [minimum stake weight](https://docs.oroagents.com/docs/validators/overview#minimum-stake-weight), 16+ GB RAM (32 GB recommended).
+From this directory (`retail-agent/`):
 
 ```bash
-git clone https://github.com/ORO-AI/oro.git
-cd oro
-cp .env.example .env    # Set WALLET_NAME and WALLET_HOTKEY
-
-WALLET_NAME=my-validator docker compose --profile validator up
+cp .env.example .env   # edit: set CHUTES_API_KEY and/or OPENROUTER_API_KEY
+mkdir -p logs
+docker compose up -d search-server proxy
+docker compose --profile test build test
+docker compose --profile test run --no-deps test --agent-file src/agent/agent_test.py
 ```
 
-**Full guide:** [Validator Overview](https://docs.oroagents.com/docs/validators/overview) — hardware requirements, configuration, monitoring, and troubleshooting.
+If `search-server` and `proxy` are already up from another clone on the same Docker networks (`shoppingbench-main`, `sandbox-network`), you can use `--no-deps` on `run test` so Compose does not recreate those services.
 
-### Local metrics (Prometheus)
+### Common flags (after the service name `test`)
 
-The validator profile bundles a Prometheus instance that scrapes the validator and proxy. It binds to `127.0.0.1:9090` only — nothing leaves the host by default. Browse to http://localhost:9090 or import `docker/prometheus/dashboards/oro-validator.json` into a local Grafana for the prebuilt dashboard.
+- `--problem-file data/suites/problem_suite_v3.json` (default)
+- `--skip-reasoning` — skip the extra LLM judge pass on trajectories
+- `--max-workers`, `--timeout` — passed through to the sandbox
 
-To ship metrics to a central Prometheus / Grafana, uncomment the `remote_write` block in `docker/prometheus/prometheus.yml`.
+## Services
 
-## What is ORO?
+| Service        | Role |
+|----------------|------|
+| `search-server`| Product search API (needs `./indexes`) |
+| `proxy`      | Routes `/search/*` to the search server and `/inference/*` to Chutes/OpenRouter |
+| `test`       | Profile `test`: builds/runs the **evaluate** image; spawns sandbox containers via the host Docker socket |
+| `sandbox`    | Profile `tools`: optional standalone sandbox (used by CI integration tests with `docker-compose.test.yml`) |
 
-ORO means "gold" in Spanish and Italian — representing the value we aim to create in the AI agent ecosystem. In Ancient Greek, *oro-* (ὄρος) means "mountain," an homage to where the founders of ORO met and live.
+## Development
 
-We're building infrastructure to evaluate, benchmark, and incentivize the development of AI agents that can navigate and operate in online commerce environments. Bittensor provides decentralized validation, transparent incentive distribution via TAO emissions, and open participation for anyone to submit agents or run validators.
+- **Python layout**: agent and scoring code under `src/agent/`; local runner and Docker helpers under `retailbench/`.
+- **Unit tests** (host): from `retail-agent/`, sync the evaluate lockfile then run pytest:
 
-## Documentation
+  ```bash
+  cd docker/evaluate && uv sync --frozen --no-install-project --python 3.10
+  uv pip install --python .venv/bin/python pytest pytest-cov
+  cd ../.. && docker/evaluate/.venv/bin/python -m pytest tests/ -v --ignore=tests/integration
+  ```
 
-Full documentation at **[docs.oroagents.com](https://docs.oroagents.com)**:
+- **Evaluate image**: [`docker/evaluate/Dockerfile`](docker/evaluate/Dockerfile) — rebuild after changing `retailbench/` or scoring code that is copied into the image (not bind-mounted in the default `test` service).
 
-| | Miners | Validators | Platform |
-|---|--------|------------|----------|
-| Getting started | [Quickstart](https://docs.oroagents.com/docs/miners/quick-start) | [Overview](https://docs.oroagents.com/docs/validators/overview) | [Architecture](https://docs.oroagents.com/docs/architecture) |
-| Reference | [Agent Interface](https://docs.oroagents.com/docs/miners/agent-interface) | [Configuration](https://docs.oroagents.com/docs/validators/configuration) | [API Endpoints](https://docs.oroagents.com/docs/api/endpoints) |
-| Testing | [Local Testing](https://docs.oroagents.com/docs/miners/local-testing) | [Installation](https://docs.oroagents.com/docs/validators/installation) | [FAQ](https://docs.oroagents.com/docs/resources/faq) |
+## Publishing images
 
-## License
-
-MIT — see [LICENSE](LICENSE).
+Maintainers: see [`.github/workflows/publish-images.yml`](.github/workflows/publish-images.yml) for building and pushing `ghcr.io/oro-ai/oro/*` images (`search-server`, `proxy`, `sandbox`, `evaluate`).

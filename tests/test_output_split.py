@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from subnet.validator.output_split import split_output_by_problem
+from retailbench.output_split import split_output_by_problem
 
 
 def _envelope(pid: str) -> dict:

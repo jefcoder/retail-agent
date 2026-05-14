@@ -1,7 +1,7 @@
 """Shared scoring logic for per-problem status and aggregate computation.
 
-Single source of truth used by ProgressReporter (validator) and
-test_runner (local testing). Do NOT reimplement scoring elsewhere.
+Single source of truth used by the local test runner and any external
+orchestrator that consumes sandbox JSONL. Do NOT reimplement scoring elsewhere.
 """
 
 from typing import Optional

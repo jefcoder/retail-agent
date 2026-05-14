@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [proxy, sandbox, validator, search-server]
+        image: [proxy, sandbox, evaluate, search-server]
         platform: [linux/amd64, linux/arm64]
         include:
           - platform: linux/amd64
@@ -50,8 +50,8 @@ jobs:
             file: docker/proxy/Dockerfile
           - image: sandbox
             file: docker/sandbox/Dockerfile
-          - image: validator
-            file: docker/validator/Dockerfile
+          - image: evaluate
+            file: docker/evaluate/Dockerfile
           - image: search-server
             file: docker/search-server/Dockerfile
 
@@ -86,7 +86,7 @@ jobs:
           file: ${{ matrix.file }}
           platforms: ${{ matrix.platform }}
           build-args: |
-            ${{ matrix.image == 'validator' && format('HF_TOKEN={0}', secrets.HF_TOKEN) || '' }}
+            ${{ matrix.image == 'evaluate' && format('HF_TOKEN={0}', secrets.HF_TOKEN) || '' }}
           outputs: type=image,name=${{ env.IMAGE_PREFIX }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:cache-${{ env.PLATFORM_PAIR }}
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:cache-${{ env.PLATFORM_PAIR }},mode=max
@@ -118,11 +118,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download validator digest (amd64)
+      - name: Download evaluate digest (amd64)
         uses: actions/download-artifact@v4
         with:
-          name: digest-validator-linux-amd64
-          path: /tmp/digests/validator
+          name: digest-evaluate-linux-amd64
+          path: /tmp/digests/evaluate
 
       - name: Download sandbox digest (amd64)
         uses: actions/download-artifact@v4
@@ -139,15 +139,12 @@ jobs:
       # Use the baked-in venv at .venv/bin/python — the same interpreter the
       # ENTRYPOINT runs in production. Going through `uv run` instead would
       # re-resolve deps from pyproject.toml at exec time and silently install
-      # anything missing from the image, hiding lockfile drift. v1.0.59 shipped
-      # exactly that bug: psutil was added to pyproject.toml but uv.lock wasn't
-      # regenerated, so `uv sync --frozen` skipped psutil at build time and
-      # the validator ImportError'd at runtime.
-      - name: Smoke test validator image
+      # anything missing from the image, hiding lockfile drift.
+      - name: Smoke test evaluate image
         run: |
-          digest=$(ls /tmp/digests/validator | head -1)
-          docker run --rm --entrypoint .venv/bin/python ${{ env.IMAGE_PREFIX }}/validator@sha256:$digest \
-            -c "import subnet.validator.main; print('Validator module OK')"
+          digest=$(ls /tmp/digests/evaluate | head -1)
+          docker run --rm --entrypoint .venv/bin/python ${{ env.IMAGE_PREFIX }}/evaluate@sha256:$digest \
+            -c "import retailbench.test_runner; print('Evaluate module OK')"
 
       - name: Smoke test sandbox image
         run: |
@@ -156,7 +153,7 @@ jobs:
             -c "import src.agent.agent_interface; print('Sandbox module OK')"
 
       # Boot the proxy with the same env vars that docker-compose.yml exports
-      # to a real validator deploy. If a new ${VAR} is added to
+      # to a real deploy. If a new ${VAR} is added to
       # nginx.conf.template without either (a) a default in the proxy
       # Dockerfile CMD or (b) a corresponding entry in docker-compose.yml,
       # envsubst writes empty, nginx fails with `[emerg] invalid number of
@@ -189,7 +186,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: [proxy, sandbox, validator, search-server]
+        image: [proxy, sandbox, evaluate, search-server]
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

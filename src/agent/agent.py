@@ -31,7 +31,7 @@ MAX_STEPS = 25
 # Per-provider default model. Naming conventions differ across providers
 # (Chutes uses TEE-suffixed author/Model; OpenRouter uses lowercase
 # author/model), so the agent picks the right name based on the
-# INFERENCE_PROVIDER env var injected by the validator sandbox.
+# INFERENCE_PROVIDER env var may be set by the sandbox / test harness.
 _DEFAULT_MODEL_BY_PROVIDER: Dict[str, str] = {
     "chutes": "deepseek-ai/DeepSeek-V3.2-TEE",
     "openrouter": "deepseek/deepseek-v3.2",

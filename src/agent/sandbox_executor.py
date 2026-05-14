@@ -349,7 +349,7 @@ def _format_single_result(result: ExecutionResult) -> str:
     """Format an ExecutionResult as one JSONL envelope line.
 
     Always returns a non-empty line — failures emit with dialogue=null so the
-    validator's ProgressReporter sees every problem outcome through one channel.
+    harness can consume every problem outcome through one channel.
     """
     dialogue: Optional[List[Dict]] = None
     if result.success and isinstance(result.result, list):
