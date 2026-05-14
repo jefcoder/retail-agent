@@ -184,7 +184,7 @@ class TestBuildSandboxCommand:
             inference_access_token="access-token-abc",
         )
         assert "INFERENCE_ACCESS_TOKEN=access-token-abc" in cmd
-        assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
+        assert not any("CHUTES" in arg for arg in cmd)
 
     def test_inference_access_token_omitted_when_none(self):
         cmd = build_sandbox_command(
@@ -194,7 +194,7 @@ class TestBuildSandboxCommand:
             output_path="/app/logs/output.jsonl",
         )
         assert not any("INFERENCE_ACCESS_TOKEN" in arg for arg in cmd)
-        assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
+        assert not any("CHUTES" in arg for arg in cmd)
 
     def test_inference_access_token_omitted_when_empty(self):
         cmd = build_sandbox_command(
@@ -205,7 +205,7 @@ class TestBuildSandboxCommand:
             inference_access_token="",
         )
         assert not any("INFERENCE_ACCESS_TOKEN" in arg for arg in cmd)
-        assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
+        assert not any("CHUTES" in arg for arg in cmd)
 
     def test_inference_provider_never_injected(self):
         cmd = build_sandbox_command(
@@ -246,7 +246,7 @@ class TestBuildSandboxCommand:
             inference_base_url="https://custom.example.com",
         )
         assert "INFERENCE_ACCESS_TOKEN=test-token-123" in cmd
-        assert not any("CHUTES_ACCESS_TOKEN" in arg for arg in cmd)
+        assert not any("CHUTES" in arg for arg in cmd)
         assert "INFERENCE_BASE_URL=https://custom.example.com" in cmd
         assert not any("INFERENCE_PROVIDER" in arg for arg in cmd)
 

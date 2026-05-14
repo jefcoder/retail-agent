@@ -117,7 +117,7 @@ def build_sandbox_command(
             mounted read-only.
         max_workers: If set, passed as ``--max-workers`` to ``run_sandbox``.
         inference_access_token: If set, injected as ``INFERENCE_ACCESS_TOKEN``
-            (OpenRouter API key for the proxy).
+            (OpenRouter API key for the retailbench proxy).
         inference_base_url: If set, injected as ``INFERENCE_BASE_URL`` env var.
         agent_container_path: If set, use this as the ``--agent-file`` path
             inside the container instead of mounting *agent_host_path* to

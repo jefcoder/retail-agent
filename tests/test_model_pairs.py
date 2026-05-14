@@ -36,6 +36,6 @@ def test_no_duplicate_model_ids(allowed_models: list[str]) -> None:
 
 
 def test_openrouter_slug_shape(allowed_models: list[str]) -> None:
-    """OpenRouter slugs are typically lowercase org/model (no Chutes -TEE suffix)."""
+    """OpenRouter slugs are typically lowercase org/model (no alternate vendor suffixes)."""
     for m in allowed_models:
         assert m == m.lower(), m

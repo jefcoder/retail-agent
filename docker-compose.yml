@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
 
   sandbox:
-    image: erenhex/retailbench-sandbox:${IMAGE_TAG:-latest}
+    image: retailbench-sandbox:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/sandbox/Dockerfile
@@ -82,7 +82,7 @@ services:
       - ./logs:/app/logs
     environment:
       - HOST_PROJECT_DIR=${PWD}
-      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-erenhex/retailbench-sandbox:${IMAGE_TAG:-latest}}
+      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-retailbench-sandbox:${IMAGE_TAG:-latest}}
       - SANDBOX_NETWORK=sandbox-network
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     entrypoint: [".venv/bin/python", "-m", "retailbench.test_runner"]

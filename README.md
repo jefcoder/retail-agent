@@ -16,6 +16,7 @@ From this directory (`retail-agent/`):
 cp .env.example .env   # edit: set OPENROUTER_API_KEY
 mkdir -p logs
 docker compose up -d search-server proxy
+docker compose build sandbox
 docker compose --profile test build test
 docker compose --profile test run --no-deps test --agent-file src/agent/agent_test.py
 ```
@@ -37,7 +38,7 @@ If `search-server` and `proxy` are already up from another clone on the same Doc
 | `test`       | Profile `test`: builds/runs the **evaluate** image; spawns sandbox containers via the host Docker socket |
 | `sandbox`    | Profile `tools`: optional standalone sandbox (used by CI integration tests with `docker-compose.test.yml`) |
 
-**Note:** Proxy images from this tree onward validate `/inference/*` against an OpenRouter model allowlist and require an OpenRouter-style API key (`Bearer sk-or-...`). Chutes is not supported here.
+**Note:** `/inference/*` on the proxy is **OpenRouter-only**: requests are checked against `docker/proxy/model_pairs.json` and must send `Authorization: Bearer sk-or-...` (your OpenRouter key).
 
 ## Development
 
