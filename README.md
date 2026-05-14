@@ -6,14 +6,14 @@ This tree is a **local shopping-agent benchmark** using Docker Compose. It runs 
 
 - Docker with Compose v2
 - A non-empty Lucene index at `./indexes` (mounted read-only into `search-server` at `/app/indexes`)
-- For agent runs: **Chutes** and/or **OpenRouter** API keys (see [`.env.example`](.env.example))
+- For agent runs: **OpenRouter** and/or **Chutes** API keys (see [`.env.example`](.env.example))
 
 ## Quick start
 
 From this directory (`retail-agent/`):
 
 ```bash
-cp .env.example .env   # edit: set CHUTES_API_KEY and/or OPENROUTER_API_KEY
+cp .env.example .env   # edit: set OPENROUTER_API_KEY and/or CHUTES_API_KEY
 mkdir -p logs
 docker compose up -d search-server proxy
 docker compose --profile test build test

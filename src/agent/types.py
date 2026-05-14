@@ -92,7 +92,7 @@ class ProblemDict(TypedDict, total=False):
 class JudgeResult(TypedDict):
     """Return value of `score_reasoning_quality`.
 
-    `score` is 0.0–1.0; `model` is the Chutes model that returned the
+    `score` is 0.0–1.0; `model` is the LLM / judge model that returned the
     parseable JSON, or "" when the judge failed entirely.
     """
     score: float

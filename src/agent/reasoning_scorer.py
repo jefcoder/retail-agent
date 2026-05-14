@@ -56,7 +56,7 @@ JUDGE_MODELS_BY_PROVIDER: dict[str, list[str]] = {
 }
 
 # Kept for back-compat with any external caller that referenced the old name.
-JUDGE_MODELS = JUDGE_MODELS_BY_PROVIDER["chutes"]
+JUDGE_MODELS = JUDGE_MODELS_BY_PROVIDER["openrouter"]
 
 _RANKED_FETCH_TIMEOUT = 5
 
@@ -70,7 +70,7 @@ _ranked_cache: dict[str, tuple[float, list[str]]] = {}
 
 
 def _static_fallback(provider: str) -> list[str]:
-    models = JUDGE_MODELS_BY_PROVIDER.get(provider) or JUDGE_MODELS_BY_PROVIDER["chutes"]
+    models = JUDGE_MODELS_BY_PROVIDER.get(provider) or JUDGE_MODELS_BY_PROVIDER["openrouter"]
     return list(models)
 
 
@@ -597,7 +597,7 @@ def score_reasoning_quality(
     api_key: str,
     proxy_url: str = PROXY_URL,
     max_retries: int = 8,
-    provider: str = "chutes",
+    provider: str = "openrouter",
     backend_url: str | None = None,
 ) -> JudgeResult:
     """Score reasoning quality of an agent trajectory using an LLM judge.

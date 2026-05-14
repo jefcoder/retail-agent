@@ -87,7 +87,7 @@ http {
             proxy_pass $chutes_upstream;
             proxy_ssl_server_name on;
 
-            # Forward miner's auth token (set by ProxyClient from CHUTES_ACCESS_TOKEN)
+            # Forward client Authorization (sandbox sets INFERENCE_ACCESS_TOKEN; ProxyClient may still read legacy CHUTES_ACCESS_TOKEN)
             proxy_set_header Authorization $http_authorization;
             proxy_set_header Host ${CHUTES_HOST};
             proxy_set_header X-Identifier "orosn15";
@@ -117,8 +117,7 @@ http {
             proxy_pass $openrouter_upstream;
             proxy_ssl_server_name on;
 
-            # Forward miner's auth token (set by ProxyClient from CHUTES_ACCESS_TOKEN /
-            # INFERENCE_ACCESS_TOKEN, populated per claim_work).
+            # Forward client Authorization (INFERENCE_ACCESS_TOKEN in sandbox; legacy CHUTES_ACCESS_TOKEN supported in ProxyClient).
             proxy_set_header Authorization $http_authorization;
             proxy_set_header Host ${OPENROUTER_HOST};
             proxy_set_header X-Real-IP $remote_addr;

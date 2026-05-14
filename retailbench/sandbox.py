@@ -117,9 +117,8 @@ def build_sandbox_command(
         extra_volumes: Optional list of ``(host_path, container_path)`` tuples
             mounted read-only.
         max_workers: If set, passed as ``--max-workers`` to ``run_sandbox``.
-        inference_access_token: If set, injected as both ``CHUTES_ACCESS_TOKEN``
-            and ``INFERENCE_ACCESS_TOKEN`` env vars (the legacy var is kept for
-            agent code that hasn't migrated).
+        inference_access_token: If set, injected as ``INFERENCE_ACCESS_TOKEN``
+            (OpenRouter or Chutes API key for the proxy).
         inference_provider: If set, injected as ``INFERENCE_PROVIDER`` env var.
         inference_base_url: If set, injected as ``INFERENCE_BASE_URL`` env var.
         agent_container_path: If set, use this as the ``--agent-file`` path
@@ -165,7 +164,6 @@ def build_sandbox_command(
     cmd.extend(["-v", f"{logs_host_path}:/app/logs"])
 
     if inference_access_token:
-        cmd.extend(["-e", f"CHUTES_ACCESS_TOKEN={inference_access_token}"])
         cmd.extend(["-e", f"INFERENCE_ACCESS_TOKEN={inference_access_token}"])
     if inference_provider:
         cmd.extend(["-e", f"INFERENCE_PROVIDER={inference_provider}"])

@@ -39,9 +39,9 @@ _DEFAULT_MODEL_BY_PROVIDER: Dict[str, str] = {
 
 
 def _default_model_for_provider() -> str:
-    provider = getenv("INFERENCE_PROVIDER", "chutes")
+    provider = getenv("INFERENCE_PROVIDER", "openrouter")
     return _DEFAULT_MODEL_BY_PROVIDER.get(
-        provider, _DEFAULT_MODEL_BY_PROVIDER["chutes"]
+        provider, _DEFAULT_MODEL_BY_PROVIDER["openrouter"]
     )
 
 
@@ -598,7 +598,7 @@ def inference(
     messages: List[Dict[str, str]],
     temperature: float = 0.0,
 ) -> Dict:
-    """Make LLM inference request via proxy to Chutes API (OpenAI-compatible)."""
+    """Make LLM inference request via proxy (OpenAI-compatible upstream)."""
     request_data = {
         "model": model,
         "temperature": temperature,

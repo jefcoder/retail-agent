@@ -50,22 +50,25 @@ _OPENROUTER_INFERENCE_BASE_URL = "https://openrouter.ai/api/v1"
 def _resolve_inference_credentials() -> tuple[str | None, str | None, str | None]:
     """Resolve (api_key, provider, base_url) for the local test rig.
 
-    Honors an explicit INFERENCE_PROVIDER override; otherwise infers from
-    which key env var is set. Returns (None, None, None) if neither is set.
+    Honors an explicit ``INFERENCE_PROVIDER`` of ``openrouter`` or ``chutes``
+    when the matching key is set. When both keys are set and
+    ``INFERENCE_PROVIDER`` is unset or empty, OpenRouter is used; set
+    ``INFERENCE_PROVIDER=chutes`` to force Chutes. Returns (None, None, None)
+    if neither key is set.
     """
     or_key = os.environ.get("OPENROUTER_API_KEY")
-    chutes_key = os.environ.get("CHUTES_API_KEY")
+    chutes_api_key = os.environ.get("CHUTES_API_KEY")
 
     explicit = os.environ.get("INFERENCE_PROVIDER")
     if explicit == "openrouter" and or_key:
         return or_key, "openrouter", _OPENROUTER_INFERENCE_BASE_URL
-    if explicit == "chutes" and chutes_key:
-        return chutes_key, "chutes", _CHUTES_INFERENCE_BASE_URL
+    if explicit == "chutes" and chutes_api_key:
+        return chutes_api_key, "chutes", _CHUTES_INFERENCE_BASE_URL
 
     if or_key:
         return or_key, "openrouter", _OPENROUTER_INFERENCE_BASE_URL
-    if chutes_key:
-        return chutes_key, "chutes", _CHUTES_INFERENCE_BASE_URL
+    if chutes_api_key:
+        return chutes_api_key, "chutes", _CHUTES_INFERENCE_BASE_URL
     return None, None, None
 
 
@@ -174,7 +177,7 @@ def _score_output(
         query = scores[i]["query"]
         short_query = query[:55] + "..." if len(query) > 55 else query
         result = score_reasoning_quality(
-            dialogue, api_key=api_key, provider=provider or "chutes"
+            dialogue, api_key=api_key, provider=provider or "openrouter"
         )
         reasoning_scores.append(result["score"])
         total_failed += result["inference_failed"]
@@ -337,10 +340,10 @@ def main():
     if not api_key:
         print(
             "Error: no inference API key set.\n"
-            "  Set one of CHUTES_API_KEY or OPENROUTER_API_KEY in your shell\n"
+            "  Set one of OPENROUTER_API_KEY or CHUTES_API_KEY in your shell\n"
             "  or copy .env.example to .env and fill it in.\n"
-            "  Get a Chutes key at https://chutes.ai/ or an OpenRouter key at\n"
-            "  https://openrouter.ai/.",
+            "  Get an OpenRouter key at https://openrouter.ai/ or a Chutes key at\n"
+            "  https://chutes.ai/.",
             file=sys.stderr,
         )
         sys.exit(2)
