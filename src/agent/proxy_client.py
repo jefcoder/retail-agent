@@ -1,4 +1,4 @@
-"""HTTP proxy client for ShoppingBench services."""
+"""HTTP proxy client for RetailBench services."""
 
 import json
 import os
@@ -161,7 +161,7 @@ class InferenceStats:
 
 class ProxyClient:
     """
-    Simple client for making HTTP requests to ShoppingBench services via the proxy.
+    Simple client for making HTTP requests to RetailBench services via the proxy.
 
     Handles URL building, retry logic, and error handling for both GET and POST requests.
     """

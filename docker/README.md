@@ -1,6 +1,6 @@
-# Docker Setup for ShoppingBench
+# Docker Setup for RetailBench
 
-This directory contains Docker configuration for running ShoppingBench services in containers.
+This directory contains Docker configuration for running RetailBench services in containers.
 
 ## Services
 
@@ -48,7 +48,7 @@ docker-compose build search-server
 Or build directly:
 
 ```bash
-docker build -f docker/search-server/Dockerfile -t shoppingbench-search-server .
+docker build -f docker/search-server/Dockerfile -t retailbench-search-server .
 ```
 
 **Note**: 
@@ -77,11 +77,11 @@ docker-compose down
 
 ```bash
 docker run -d \
-  --name shoppingbench-search-server \
+  --name retailbench-search-server \
   -p 5632:5632 \
   -e HOST=0.0.0.0 \
   -e PORT=5632 \
-  shoppingbench-search-server
+  retailbench-search-server
 ```
 
 ### Environment Variables
@@ -161,7 +161,7 @@ View logs:
 docker-compose logs -f search-server
 
 # Docker
-docker logs -f shoppingbench-search-server
+docker logs -f retailbench-search-server
 ```
 
 The server logs to stderr, which Docker captures automatically.
@@ -191,7 +191,7 @@ If you've built images before, Docker will automatically reuse them:
 
 ```bash
 # Check if images exist
-docker images | grep shoppingbench
+docker images | grep retailbench
 
 # Images are automatically reused by docker-compose
 docker-compose up -d  # Uses cached images if available
@@ -205,7 +205,7 @@ If you need to clear Docker caches (e.g., to free disk space):
 # Remove unused images, containers, and build cache
 docker system prune -a
 
-# Warning: This will remove all unused images, including ShoppingBench images
+# Warning: This will remove all unused images, including RetailBench images
 # You'll need to rebuild after running this
 ```
 

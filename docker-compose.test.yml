@@ -6,7 +6,7 @@
 # is only loaded when explicitly passed via `-f`.
 services:
   sandbox:
-    container_name: shoppingbench-sandbox
+    container_name: retailbench-sandbox
     profiles: []
     command: ["sleep", "infinity"]
     restart: "no"

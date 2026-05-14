@@ -1,4 +1,4 @@
-"""Shared type definitions for the ShoppingBench agent and scoring pipeline."""
+"""Shared type definitions for the RetailBench agent and scoring pipeline."""
 
 from __future__ import annotations
 

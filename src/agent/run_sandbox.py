@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Execute agent against ShoppingBench problems in sandbox"
+        description="Execute agent against RetailBench problems in sandbox"
     )
     parser.add_argument(
         "--problem-file",

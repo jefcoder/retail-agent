@@ -8,15 +8,13 @@ on:
         required: true
         default: 'latest'
 
+# Retags on Docker Hub (erenhex). Requires repo secret DOCKERHUB_TOKEN.
 env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/oro-ai/oro
+  IMAGE_PREFIX: erenhex/retailbench-
 
 jobs:
   promote:
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
 
     strategy:
       fail-fast: false
@@ -24,12 +22,11 @@ jobs:
         image: [proxy, sandbox, evaluate, search-server]
 
     steps:
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: erenhex
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,5 +37,5 @@ jobs:
         run: |
           echo "Retagging ${{ matrix.image }}: ${SOURCE_TAG} → stable"
           docker buildx imagetools create \
-            ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${SOURCE_TAG} \
-            --tag ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:stable
+            ${{ env.IMAGE_PREFIX }}${{ matrix.image }}:${SOURCE_TAG} \
+            --tag ${{ env.IMAGE_PREFIX }}${{ matrix.image }}:stable

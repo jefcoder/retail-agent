@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 
-SANDBOX_IMAGE = os.environ.get("SANDBOX_IMAGE", "ghcr.io/oro-ai/oro/sandbox:latest")
+SANDBOX_IMAGE = os.environ.get("SANDBOX_IMAGE", "erenhex/retailbench-sandbox:latest")
 SANDBOX_NETWORK = os.environ.get("SANDBOX_NETWORK", "sandbox-network")
 HOST_PROJECT_DIR = os.environ.get("HOST_PROJECT_DIR")
 

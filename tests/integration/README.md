@@ -1,6 +1,6 @@
 # Integration Tests
 
-Integration tests verify that ShoppingBench services work correctly when running in Docker containers.
+Integration tests verify that RetailBench services work correctly when running in Docker containers.
 
 ## Prerequisites
 

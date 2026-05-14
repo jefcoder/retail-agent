@@ -11,9 +11,9 @@ on:
         required: true
         default: 'latest'
 
+# Push targets Docker Hub (erenhex). Add repo secret DOCKERHUB_TOKEN for user erenhex.
 env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/oro-ai/oro
+  IMAGE_PREFIX: erenhex/retailbench-
 
 jobs:
   determine-tag:
@@ -35,7 +35,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      packages: write
     strategy:
       fail-fast: false
       matrix:
@@ -71,12 +70,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: erenhex
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push by digest
         id: build
@@ -87,9 +85,9 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             ${{ matrix.image == 'evaluate' && format('HF_TOKEN={0}', secrets.HF_TOKEN) || '' }}
-          outputs: type=image,name=${{ env.IMAGE_PREFIX }}/${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:cache-${{ env.PLATFORM_PAIR }}
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:cache-${{ env.PLATFORM_PAIR }},mode=max
+          outputs: type=image,name=${{ env.IMAGE_PREFIX }}${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}${{ matrix.image }}:cache-${{ env.PLATFORM_PAIR }}
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}${{ matrix.image }}:cache-${{ env.PLATFORM_PAIR }},mode=max
 
       - name: Export digest
         run: |
@@ -108,15 +106,12 @@ jobs:
   smoke-test:
     needs: [build]
     runs-on: ubuntu-latest
-    permissions:
-      packages: read
     steps:
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: erenhex
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Download evaluate digest (amd64)
         uses: actions/download-artifact@v4
@@ -143,13 +138,13 @@ jobs:
       - name: Smoke test evaluate image
         run: |
           digest=$(ls /tmp/digests/evaluate | head -1)
-          docker run --rm --entrypoint .venv/bin/python ${{ env.IMAGE_PREFIX }}/evaluate@sha256:$digest \
+          docker run --rm --entrypoint .venv/bin/python ${{ env.IMAGE_PREFIX }}evaluate@sha256:$digest \
             -c "import retailbench.test_runner; print('Evaluate module OK')"
 
       - name: Smoke test sandbox image
         run: |
           digest=$(ls /tmp/digests/sandbox | head -1)
-          docker run --rm --entrypoint python ${{ env.IMAGE_PREFIX }}/sandbox@sha256:$digest \
+          docker run --rm --entrypoint python ${{ env.IMAGE_PREFIX }}sandbox@sha256:$digest \
             -c "import src.agent.agent_interface; print('Sandbox module OK')"
 
       # Boot the proxy with the same env vars that docker-compose.yml exports
@@ -167,7 +162,7 @@ jobs:
             -e SEARCH_SERVER_URL=search-server \
             -e SEARCH_SERVER_PORT=5632 \
             -e OPENROUTER_HOST=openrouter.ai \
-            ${{ env.IMAGE_PREFIX }}/proxy@sha256:$digest
+            ${{ env.IMAGE_PREFIX }}proxy@sha256:$digest
           sleep 5
           state=$(docker inspect -f '{{.State.Status}}' proxy-smoke)
           if [ "$state" != "running" ]; then
@@ -182,8 +177,6 @@ jobs:
   merge:
     needs: [determine-tag, smoke-test]
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
     strategy:
       matrix:
         image: [proxy, sandbox, evaluate, search-server]
@@ -191,12 +184,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: erenhex
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Download digests
         uses: actions/download-artifact@v4
@@ -208,6 +200,6 @@ jobs:
       - name: Create manifest and push
         run: |
           docker buildx imagetools create \
-            -t ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:${{ needs.determine-tag.outputs.tag }} \
-            -t ${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest \
-            $(printf '${{ env.IMAGE_PREFIX }}/${{ matrix.image }}@sha256:%s ' $(ls /tmp/digests/))
+            -t ${{ env.IMAGE_PREFIX }}${{ matrix.image }}:${{ needs.determine-tag.outputs.tag }} \
+            -t ${{ env.IMAGE_PREFIX }}${{ matrix.image }}:latest \
+            $(printf '${{ env.IMAGE_PREFIX }}${{ matrix.image }}@sha256:%s ' $(ls /tmp/digests/))

@@ -41,7 +41,7 @@
   <text x="690" y="28" text-anchor="middle" class="actor-label">Validator</text>
   <rect x="590" y="38" width="200" height="70" rx="14" fill="#0A3815"/>
   <text x="690" y="68" text-anchor="middle" class="box-label">Evaluate &amp; Score</text>
-  <text x="690" y="86" text-anchor="middle" class="box-sub">Docker sandbox · ShoppingBench</text>
+  <text x="690" y="86" text-anchor="middle" class="box-sub">Docker sandbox · RetailBench</text>
   <text x="690" y="130" text-anchor="middle" class="desc">Runs agents in isolation</text>
   <text x="690" y="144" text-anchor="middle" class="desc">Scores against ground truth</text>
 

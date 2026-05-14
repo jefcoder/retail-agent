@@ -1,3 +1,3 @@
 """
-Tests package for ShoppingBench.
+Tests package for RetailBench.
 """

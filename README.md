@@ -20,7 +20,7 @@ docker compose --profile test build test
 docker compose --profile test run --no-deps test --agent-file src/agent/agent_test.py
 ```
 
-If `search-server` and `proxy` are already up from another clone on the same Docker networks (`shoppingbench-main`, `sandbox-network`), you can use `--no-deps` on `run test` so Compose does not recreate those services.
+If `search-server` and `proxy` are already up from another clone on the same Docker networks (`retailbench-main`, `sandbox-network`), you can use `--no-deps` on `run test` so Compose does not recreate those services.
 
 ### Common flags (after the service name `test`)
 
@@ -54,4 +54,4 @@ If `search-server` and `proxy` are already up from another clone on the same Doc
 
 ## Publishing images
 
-Maintainers: see [`.github/workflows/publish-images.yml`](.github/workflows/publish-images.yml) for building and pushing `ghcr.io/oro-ai/oro/*` images (`search-server`, `proxy`, `sandbox`, `evaluate`).
+Maintainers: see [`.github/workflows/publish-images.yml`](.github/workflows/publish-images.yml) for building and pushing Docker Hub images under `erenhex/retailbench-*` (`search-server`, `proxy`, `sandbox`, `evaluate`). Configure the `DOCKERHUB_TOKEN` repository secret for pushes.

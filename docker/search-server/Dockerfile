@@ -1,4 +1,4 @@
-FROM ghcr.io/oro-ai/oro/search-server-base:latest
+FROM erenhex/retailbench-search-server-base:latest
 
 WORKDIR /app
 

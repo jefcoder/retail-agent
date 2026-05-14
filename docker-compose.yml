@@ -1,10 +1,10 @@
 services:
   search-server:
-    image: ghcr.io/oro-ai/oro/search-server:${IMAGE_TAG:-stable}
+    image: erenhex/retailbench-search-server:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/search-server/Dockerfile
-    container_name: shoppingbench-search-server
+    container_name: retailbench-search-server
     environment:
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-5632}
@@ -22,11 +22,11 @@ services:
     restart: unless-stopped
 
   proxy:
-    image: ghcr.io/oro-ai/oro/proxy:${IMAGE_TAG:-stable}
+    image: erenhex/retailbench-proxy:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/proxy/Dockerfile
-    container_name: shoppingbench-proxy
+    container_name: retailbench-proxy
     environment:
       - SEARCH_SERVER_URL=${SEARCH_SERVER_URL:-search-server}
       - SEARCH_SERVER_PORT=${SEARCH_SERVER_PORT:-5632}
@@ -45,7 +45,7 @@ services:
     restart: unless-stopped
 
   sandbox:
-    image: ghcr.io/oro-ai/oro/sandbox:${IMAGE_TAG:-stable}
+    image: erenhex/retailbench-sandbox:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: docker/sandbox/Dockerfile
@@ -82,7 +82,7 @@ services:
       - ./logs:/app/logs
     environment:
       - HOST_PROJECT_DIR=${PWD}
-      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-ghcr.io/oro-ai/oro/sandbox:${IMAGE_TAG:-stable}}
+      - SANDBOX_IMAGE=${SANDBOX_IMAGE:-erenhex/retailbench-sandbox:${IMAGE_TAG:-latest}}
       - SANDBOX_NETWORK=sandbox-network
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     entrypoint: [".venv/bin/python", "-m", "retailbench.test_runner"]
@@ -92,7 +92,7 @@ services:
 
 networks:
   main:
-    name: shoppingbench-main
+    name: retailbench-main
     driver: bridge
   sandbox:
     name: sandbox-network

@@ -1,3 +1,3 @@
 """
-Integration tests for ShoppingBench services.
+Integration tests for RetailBench services.
 """

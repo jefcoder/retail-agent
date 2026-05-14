@@ -1,4 +1,4 @@
-"""Tool registration, execution, and dialogue step creation for ShoppingBench agents."""
+"""Tool registration, execution, and dialogue step creation for RetailBench agents."""
 
 import json
 import hashlib
