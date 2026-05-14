@@ -325,11 +325,11 @@ _score_inference_client = _LoggingProxyClient(ProxyClient(timeout=60, max_retrie
 _search_client = _LoggingProxyClient(ProxyClient(timeout=30, max_retries=5), "search")
 
 _product_detail_cache: dict[str, dict] = {}
-_oro_request_times: list[float] = []
-_oro_rate_limit_lock = threading.Lock()
-_ORO_MAX_REQUESTS_PER_MINUTE = 90
-_ORO_WINDOW_SECONDS = 60.0
-_ORO_MIN_INTERVAL_SECONDS = 0.7
+_search_http_request_times: list[float] = []
+_search_http_rate_lock = threading.Lock()
+_SEARCH_HTTP_MAX_REQUESTS_PER_MINUTE = 90
+_SEARCH_HTTP_WINDOW_SECONDS = 60.0
+_SEARCH_HTTP_MIN_INTERVAL_SECONDS = 0.7
 
 _last_tool_call_time = 0.0
 TOOL_CALL_DELAY = 0.5
@@ -619,7 +619,7 @@ _VOUCHER_PROMPT = _join_prompt_lines((
 ))
 
 _SHOP_SCORER_PROMPT = _join_prompt_lines((
-    "You are scoring product candidates for a shopping benchmark.",
+    "You are scoring product candidates for a retail benchmark.",
     "",
     "Score EVERY candidate against the user request. Return a score for ALL of them.",
     "",
@@ -650,7 +650,7 @@ _TASK_EXTRACTION_PROMPTS: dict[str, str] = {
 PRODUCT_JUDGE_MAX_RETRIES = 3
 
 _PRODUCT_JUDGE_PROMPT = _join_prompt_lines((
-    "You are choosing the best final product candidate for a shopping benchmark.",
+    "You are choosing the best final product candidate for a retail benchmark.",
     "",
     "Pick the ONE candidate that most exactly satisfies the user request.",
     "",
@@ -683,7 +683,7 @@ _PRODUCT_JUDGE_PROMPT = _join_prompt_lines((
 
 
 _THINK_NARRATOR_PROMPT = _join_prompt_lines((
-    "You are an AI shopping assistant. Write 2–4 sentences of internal, first-person reasoning explaining what you are doing at this step.",
+    "You are an AI retail assistant. Write 2–4 sentences of internal, first-person reasoning explaining what you are doing at this step.",
     "",
     'You receive a JSON object with a "query" field and additional context. Identify which case applies from the keys present and write accordingly:',
     "",
@@ -790,37 +790,37 @@ _JUST_MANUFACTURER_NOT_BRAND: list[str] = [
 _BUDGET_SPLIT_RE = re.compile(r"(?:My budget|budget is|I have a voucher)", re.IGNORECASE)
 
 
-def _wait_for_oro_request_slot() -> None:
+def _wait_for_search_http_slot() -> None:
     def _evict_stale_requests(now: float) -> None:
-        cutoff = now - _ORO_WINDOW_SECONDS
-        while _oro_request_times and _oro_request_times[0] <= cutoff:
-            _oro_request_times.pop(0)
+        cutoff = now - _SEARCH_HTTP_WINDOW_SECONDS
+        while _search_http_request_times and _search_http_request_times[0] <= cutoff:
+            _search_http_request_times.pop(0)
 
     def _compute_wait_duration(now: float) -> float:
         wait = 0.0
-        if _oro_request_times:
-            gap = now - _oro_request_times[-1]
-            if gap < _ORO_MIN_INTERVAL_SECONDS:
-                wait = _ORO_MIN_INTERVAL_SECONDS - gap
-        if len(_oro_request_times) >= _ORO_MAX_REQUESTS_PER_MINUTE:
-            oldest_age = now - _oro_request_times[0]
-            wait = max(wait, _ORO_WINDOW_SECONDS - oldest_age)
+        if _search_http_request_times:
+            gap = now - _search_http_request_times[-1]
+            if gap < _SEARCH_HTTP_MIN_INTERVAL_SECONDS:
+                wait = _SEARCH_HTTP_MIN_INTERVAL_SECONDS - gap
+        if len(_search_http_request_times) >= _SEARCH_HTTP_MAX_REQUESTS_PER_MINUTE:
+            oldest_age = now - _search_http_request_times[0]
+            wait = max(wait, _SEARCH_HTTP_WINDOW_SECONDS - oldest_age)
         return max(wait, 0.0)
 
     while True:
-        with _oro_rate_limit_lock:
+        with _search_http_rate_lock:
             now = time.monotonic()
             _evict_stale_requests(now)
             sleep_for = _compute_wait_duration(now)
             if sleep_for <= 0:
-                _oro_request_times.append(now)
+                _search_http_request_times.append(now)
                 return
 
         time.sleep(sleep_for)
 
 
-def _oro_get(path: str, params: dict | None = None):
-    _wait_for_oro_request_slot()
+def _search_http_get(path: str, params: dict | None = None):
+    _wait_for_search_http_slot()
     return _search_client.get(path, params)
 
 
@@ -874,13 +874,13 @@ def find_product(
         sort=sort,
         service=service,
     )
-    result = _oro_get("/search/find_product", search_params) or []
+    result = _search_http_get("/search/find_product", search_params) or []
     if result or "service" not in search_params:
         return result
 
     retry_params = dict(search_params)
     retry_params.pop("service", None)
-    return _oro_get("/search/find_product", retry_params) or []
+    return _search_http_get("/search/find_product", retry_params) or []
 
 def _normalize_service(service: str | None) -> str | None:
     if service in (None, ""):
@@ -1662,7 +1662,7 @@ def _fetch_product_details(product_ids: list[str]) -> dict[str, dict]:
     uncached = [pid for pid in product_ids if pid not in _product_detail_cache]
     for index in range(0, len(uncached), 10):
         batch = uncached[index : index + 10]
-        result = _oro_get("/search/view_product_information", {"product_ids": ",".join(batch)})
+        result = _search_http_get("/search/view_product_information", {"product_ids": ",".join(batch)})
         if result and isinstance(result, list):
             for row in result:
                 _product_detail_cache[str(row.get("product_id", ""))] = row

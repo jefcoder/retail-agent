@@ -435,7 +435,7 @@ class TestWhitespaceStripping:
 
 class TestDeduplication:
     """Verify that duplicate product IDs are removed before scoring,
-    preventing miners from inflating scores by repeating IDs."""
+    preventing bad-faith agents from inflating scores by repeating IDs."""
 
     # 1. Duplicate IDs should not be double-counted in shop tasks
     @patch("src.agent.problem_scorer.get_product")
@@ -468,7 +468,7 @@ class TestDeduplication:
     # 2. Duplicate IDs should not game budget in voucher tasks
     @patch("src.agent.problem_scorer.get_product")
     def test_duplicate_ids_not_double_counted_voucher(self, mock_gp):
-        """Miner repeats a cheap product to game budget: duplicates removed
+        """Duplicated cheap product IDs to game budget: duplicates removed
         means num_hits < len(reward), so budget=0."""
         catalog = {
             "cheap": make_product("cheap", shop_id=1, price=5.0),
@@ -487,7 +487,7 @@ class TestDeduplication:
             rewards={QUERY: [make_reward("cheap"), make_reward("p2"), make_reward("p3")]},
             vouchers={QUERY: voucher},
         )
-        # Miner submits same cheap product 3 times
+        # Agent output repeats the same cheap product three times
         output = make_output("cheap,cheap,cheap")
         result = scorer.score_problem(QUERY, output)
 
@@ -679,7 +679,7 @@ class TestDeduplication:
 
 class TestShopScoreRequiresRelevance:
     """Verify that num_hits only increments when rule_score > 0,
-    preventing miners from submitting random valid product IDs to game
+    preventing agents from submitting random valid product IDs to game
     shop/budget scores."""
 
     # 1. Wrong products from same shop should NOT get shop=1
@@ -849,7 +849,7 @@ class TestShopScoreRequiresRelevance:
             rewards={QUERY: [make_reward("p1"), make_reward("p2"), make_reward("p3")]},
             vouchers={QUERY: voucher},
         )
-        # Miner submits p1, p2 (correct) and wrong1 (wrong, expensive)
+        # Output lists p1, p2 (correct) and wrong1 (wrong, expensive)
         output = make_output("p1,p2,wrong1")
         result = scorer.score_problem(QUERY, output)
 
@@ -886,7 +886,7 @@ class TestShopScoreRequiresRelevance:
             rewards={QUERY: [make_reward("cheap"), make_reward("another_correct")]},
             vouchers={QUERY: voucher},
         )
-        # Miner submits cheap (correct) + expensive_wrong (wrong)
+        # Agent lists cheap (correct) + expensive_wrong (wrong)
         output = make_output("cheap,expensive_wrong")
         result = scorer.score_problem(QUERY, output)
 

@@ -1,6 +1,6 @@
 """ProblemScorer - Score individual problems independently.
 
-This module provides the ProblemScorer class which scores shopping benchmark
+This module provides the ProblemScorer class which scores retail benchmark
 problems one at a time, enabling partial results and real-time progress reporting.
 
 Uses HTTP calls to the search-server for product lookups, eliminating the need
@@ -78,7 +78,7 @@ TIMESTAMP_MISSING_PENALTY = 0.5
 
 
 class ProblemScorer:
-    """Scores individual shopping benchmark problems independently.
+    """Scores individual retail benchmark problems independently.
 
     This class enables per-problem scoring without requiring the entire test
     suite to complete. It supports product, shop, and voucher tasks.

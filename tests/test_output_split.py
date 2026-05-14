@@ -1,9 +1,8 @@
-"""Regression tests for split_output_by_problem (ORO-988).
+"""Regression tests for split_output_by_problem.
 
-v1.0.60 uploaded one trajectory per run instead of ~30 because the upload
-parser still expected the pre-ORO-907 list-of-steps shape while the sandbox
-had switched to envelope dicts. The fallback dumped everything under
-problem_ids[0]. Tests pin the post-907 envelope path.
+Earlier tooling assumed a legacy list-of-steps sandbox shape while the
+sandbox emitted per-problem envelope dicts, so parsers mis-attributed rows.
+Tests pin the envelope-based splitting path used by RetailBench runners.
 """
 
 from __future__ import annotations
@@ -75,7 +74,7 @@ def test_empty_dialogue_on_success_yields_empty_list_payload(tmp_path: Path) -> 
 
 
 def test_abnormal_termination_synthesizes_step_with_error_metadata(tmp_path: Path) -> None:
-    """ORO-1147: FAILED / TIMED_OUT envelopes have dialogue=None plus an error
+    """FAILED / TIMED_OUT envelopes have dialogue=None plus an error
     object. Previously the splitter wrote `[]` and lost the failure context.
     Now it synthesizes a single step carrying status + error so the artifact
     array shape stays valid and downstream consumers can distinguish abnormal

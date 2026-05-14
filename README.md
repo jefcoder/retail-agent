@@ -1,6 +1,6 @@
 # RetailBench (local)
 
-This tree is a **local shopping-agent benchmark** using Docker Compose. It runs agents in an isolated sandbox against [ShoppingBench](https://arxiv.org/abs/2508.04266)-style problems, scores outcomes against ground truth, and optionally judges reasoning quality via the same inference proxy the agent uses.
+This tree is a **local retail-agent benchmark** using Docker Compose. It runs agents in an isolated sandbox against [RetailBench-style problems](https://arxiv.org/abs/2508.04266) scored against ground truth, and optionally judges reasoning quality via the same inference proxy the agent uses.
 
 ## Prerequisites
 

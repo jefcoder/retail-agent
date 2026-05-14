@@ -1,7 +1,7 @@
 """
 Agent template for RetailBench sandbox execution.
 
-Implements a ReAct (Reasoning + Acting) loop following the ShoppingBench paper:
+Implements a ReAct (Reasoning + Acting) loop as used in RetailBench:
 each step calls the LLM, parses <think>, <tool_call>, <response> XML tags,
 executes tools, appends observations to dialogue history, and repeats until
 the agent terminates or hits MAX_STEPS.

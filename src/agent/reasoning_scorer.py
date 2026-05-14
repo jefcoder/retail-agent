@@ -42,10 +42,8 @@ JUDGE_MODELS: list[str] = [
 _RANKED_FETCH_TIMEOUT = 5
 
 # 30s coalesces bursts (~15 problems scoring in parallel) into
-# a single Backend call, and bounds Backend-facing QPS regardless of how
-# many clients run on one IP (the public allowlist endpoint is rate-limited
-# at 100 rpm/IP). Cache TTL ≤ Backend's own 60s upstream-poll cadence, so the
-# staleness ceiling is the same as if we hit Backend on every call.
+# a single HTTP call to the public models endpoint, and caps QPS from this
+# process. Cache TTL matches a typical short poll interval so staleness is bounded.
 _RANKED_CACHE_TTL_SECONDS = 30
 _ranked_cache: dict[str, tuple[float, list[str]]] = {}
 
@@ -55,10 +53,11 @@ def _static_fallback(_provider: str) -> list[str]:
 
 
 def _fetch_ranked_models(provider: str, backend_url: str | None) -> list[str]:
-    """Fetch ranked judge model list from the Backend (OpenRouter).
+    """Fetch ranked judge model list from ``backend_url`` when configured.
 
     Cached locally for ``_RANKED_CACHE_TTL_SECONDS``. Falls back to the static
-    ``JUDGE_MODELS`` list on any failure so the judge keeps working when Backend is down.
+    ``JUDGE_MODELS`` list on any failure so the judge keeps working when the
+    endpoint is unavailable.
     """
     cached = _ranked_cache.get(provider)
     now = time.monotonic()
@@ -89,7 +88,7 @@ def _fetch_ranked_models(provider: str, backend_url: str | None) -> list[str]:
             return list(fallback)
         ranked_by = body.get("ranked_by")
         if ranked_by:
-            logger.info("Judge model order from Backend (%s): %s", ranked_by, ids)
+            logger.info("Judge model order from inference config (%s): %s", ranked_by, ids)
         _ranked_cache[provider] = (now, ids)
         return list(ids)
     except Exception as exc:
@@ -98,7 +97,7 @@ def _fetch_ranked_models(provider: str, backend_url: str | None) -> list[str]:
         return list(fallback)
 
 JUDGE_SYSTEM_PROMPT = """\
-You evaluate a shopping agent's trajectory and decide whether the agent is using genuine LLM reasoning or pattern matching / regex.
+You evaluate a retail agent's trajectory and decide whether the agent is using genuine LLM reasoning or pattern matching / regex.
 
 You will see:
 1. The user's QUERY.

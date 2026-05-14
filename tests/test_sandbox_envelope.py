@@ -1,4 +1,4 @@
-"""Envelope format tests for ORO-907 sandbox output IPC."""
+"""Envelope format tests for sandbox output IPC (per-problem JSONL rows)."""
 
 import json
 from unittest.mock import MagicMock, patch
@@ -8,21 +8,20 @@ from src.agent.sandbox_executor import ErrorInfo, ExecutionResult, _format_singl
 from src.agent.sandbox_status import SandboxProblemStatus
 
 
-# Mirrors Backend/app/models/schemas/common.py::ProblemStatus.
-# Sandbox cannot import from Backend repo. CI guard catches drift.
-BACKEND_PROBLEM_STATUS_VALUES = frozenset(
+# Canonical superset used by integrations that ingest sandbox statuses.
+# CI guard asserts SandboxProblemStatus stays compatible.
+CANONICAL_PROBLEM_STATUS_VALUES = frozenset(
     {"PENDING", "RUNNING", "SUCCESS", "FAILED", "SKIPPED", "TIMED_OUT"}
 )
 
 
 class TestSandboxProblemStatus:
-    def test_values_subset_of_backend(self):
+    def test_values_subset_of_canonical(self):
         sandbox_values = {s.value for s in SandboxProblemStatus}
-        assert sandbox_values <= BACKEND_PROBLEM_STATUS_VALUES, (
-            f"SandboxProblemStatus has values not in Backend ProblemStatus: "
-            f"{sandbox_values - BACKEND_PROBLEM_STATUS_VALUES}. "
-            f"Update Backend/app/models/schemas/common.py::ProblemStatus or "
-            f"narrow sandbox emissions."
+        assert sandbox_values <= CANONICAL_PROBLEM_STATUS_VALUES, (
+            f"SandboxProblemStatus has values not in canonical ProblemStatus: "
+            f"{sandbox_values - CANONICAL_PROBLEM_STATUS_VALUES}. "
+            f"Update the canonical status set or narrow sandbox emissions."
         )
 
     def test_required_values_present(self):
