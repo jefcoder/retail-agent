@@ -1,5 +1,5 @@
 {
-  "_comment": "Maps each model to its identifier on every supported provider. The proxy uses this to rewrite an incoming request's `model` field to the active provider's form, so agents can use a single string regardless of which provider is funding the run. Both sides must be in the matching allowlist served by Backend (`/v1/public/inference/models?provider=...`).",
+  "_comment": "Maps each model to its identifier on every supported provider. The proxy uses this to rewrite an incoming request's `model` field to the active provider's form, so agents can use a single string regardless of which provider is funding the run. Per-provider inference allowlists are exactly the union of chutes and openrouter IDs listed in pairs (no external fetch).",
   "pairs": [
     { "chutes": "deepseek-ai/DeepSeek-V3.2-TEE",            "openrouter": "deepseek/deepseek-v3.2" },
     { "chutes": "deepseek-ai/DeepSeek-V3.1-TEE",            "openrouter": "deepseek/deepseek-chat-v3.1" },

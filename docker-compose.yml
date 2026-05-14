@@ -31,8 +31,6 @@ services:
       - SEARCH_SERVER_URL=${SEARCH_SERVER_URL:-search-server}
       - SEARCH_SERVER_PORT=${SEARCH_SERVER_PORT:-5632}
       - CHUTES_HOST=${CHUTES_HOST:-llm.chutes.ai}
-      - BACKEND_URL=${BACKEND_URL:-https://api.oroagents.com}
-      - BACKEND_HOST=${BACKEND_HOST:-api.oroagents.com}
     ports:
       - "${PROXY_PORT:-8080}:80"
     networks:
